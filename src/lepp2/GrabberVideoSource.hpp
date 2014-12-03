@@ -62,6 +62,22 @@ void GeneralGrabberVideoSource<PointT>::open() {
   interface_->start();
 }
 
+/**
+ * A convenience class for a live stream captured from a local RGB-D sensor.
+ *
+ * The implementation leverages the GeneralGrabberVideoSource wrapping a
+ * PCL-based OpenNIGrabber instance.
+ */
+template<class PointT>
+class LiveStreamSource : public GeneralGrabberVideoSource<PointT> {
+public:
+  LiveStreamSource()
+      : GeneralGrabberVideoSource<PointT>(
+            boost::shared_ptr<pcl::Grabber>(new pcl::OpenNIGrabber())) {
+    // Empty... All work performed in the initializer list.
+  }
+};
+
 }  // namespace lepp
 
 #endif
