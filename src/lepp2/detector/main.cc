@@ -12,7 +12,7 @@
 #include "lepp2/VideoObserver.hpp"
 
 #include "lepp2/visualization/EchoObserver.hpp"
-
+#include "lepp2/visualization/ObstacleVisualizer.hpp"
 
 using namespace lepp;
 
@@ -31,10 +31,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string const file_name = argv[1];
+  std::string const file_path = argv[1];
 
-  char const* file_path = argv[1];
-
+  // Prepare the source: read from the given file
   boost::shared_ptr<pcl::Grabber> interface(new pcl::io::OpenNI2Grabber(
     file_path,
     pcl::io::OpenNI2Grabber::OpenNI_Default_Mode,
@@ -42,13 +41,22 @@ int main(int argc, char* argv[]) {
   boost::shared_ptr<SimpleVideoSource> source(
       new GeneralGrabberVideoSource<SimplePoint>(interface));
 
-  boost::shared_ptr<SimpleVideoSource::ObserverType> observer(
-      new EchoObserver<SimplePoint>());
-  source->attachObserver(observer);
-
+  // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(
       new BaseObstacleDetector<SimplePoint>());
+  // Attaching the detector to the source: process the point clouds obtained
+  // by the source.
   source->attachObserver(detector);
+
+  // Prepare the result visualizer...
+  boost::shared_ptr<ObstacleVisualizer<SimplePoint> > visualizer(
+      new ObstacleVisualizer<SimplePoint>());
+  // Attaching the visualizer to the source: allow it to display the original
+  // point cloud.
+  source->attachObserver(visualizer);
+  // Attaching the visualizer to the detector: allow it to display the obstacle
+  // approximations.
+  detector->attachObstacleAggregator(visualizer);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
