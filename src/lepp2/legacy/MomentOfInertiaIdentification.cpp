@@ -82,7 +82,7 @@
 	    //use spheres
 	      tmp = m_preallocator_sphere.newInstance();
 	      getModelList()->push_back(tmp);
-        std::cout << "Sphere" << std::endl;
+        // std::cout << "Sphere" << std::endl;
 	  }
 
 	  else if (middle_value/major_value < 0.25)
@@ -90,7 +90,7 @@
 	    //use cylinders
 	      tmp = m_preallocator_cylinder.newInstance();
 	      getModelList()->push_back(tmp);
-        std::cout << "Cylinder" << std::endl;
+        // std::cout << "Cylinder" << std::endl;
 	  }
 
 	  else
@@ -98,7 +98,7 @@
 	    //use triangles
 	      tmp = m_preallocator_triangle.newInstance();
 	      getModelList()->push_back(tmp);
-        std::cout << "Triangle" << std::endl;
+        // std::cout << "Triangle" << std::endl;
 	  }
 
 

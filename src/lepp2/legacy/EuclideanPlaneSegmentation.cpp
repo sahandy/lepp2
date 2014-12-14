@@ -74,7 +74,7 @@ void EuclideanPlaneSegmentation::update() {
 
 
 #ifdef FILTER
-    std::cout << "size point cloud before filtering " << cloud->size() << std::endl;
+    // std::cout << "size point cloud before filtering " << cloud->size() << std::endl;
 
 
     // Voxel Grid filter for downsampling point cloud
@@ -85,7 +85,7 @@ void EuclideanPlaneSegmentation::update() {
     sor.filter (*cloud_f);
 
 
-    std::cout << "size point cloud after filtering " << cloud_f->size() << std::endl;
+    // std::cout << "size point cloud after filtering " << cloud_f->size() << std::endl;
 #endif
 
     // find all valid points (!= NaN) in the cloud; save the new cloud to cloud_filtered/cloud_cluster; save the indices to validPoints
@@ -152,7 +152,7 @@ void EuclideanPlaneSegmentation::update() {
      * Create PointCloud instances from the clusterIndices.
      */
 
-    std::cout << "Number of Clusters: " << m_clusterIndices.size() << std::endl;
+    // std::cout << "Number of Clusters: " << m_clusterIndices.size() << std::endl;
     fflush(stdout);
 
     // first purge the cluster list
@@ -177,7 +177,7 @@ void EuclideanPlaneSegmentation::update() {
     for (i = 0; i < m_clusterIndices.size();++i) {
 
 #ifdef OUTPUT
-        std::cout << "Number of Points in cluster " << m_clusterIndices.at(i).indices.size() << std::endl;
+        // std::cout << "Number of Points in cluster " << m_clusterIndices.at(i).indices.size() << std::endl;
         fflush(stdout);
 #endif
 
@@ -193,7 +193,7 @@ void EuclideanPlaneSegmentation::update() {
 
 #ifdef ESTIMATE_POINTS
 {
-    std::cout << "ESTIMATE_POINTS is defined" << std::endl;
+    // std::cout << "ESTIMATE_POINTS is defined" << std::endl;
     // Now estimate unknown object points
     #pragma omp parallel for
     for (i = 0; i < m_clusterIndices.size();++i) {
@@ -202,8 +202,8 @@ void EuclideanPlaneSegmentation::update() {
       pcl::getMinMax3D (*(getClusterList()-> at(i)), min_pt, max_pt);
 
 #ifdef OUTPUT
-      std::cout << "min_pt " << min_pt.x   << min_pt.y   << min_pt.z    << std::endl;
-      std::cout << "max_pt " << max_pt.x   << max_pt.y   << max_pt.z    << std::endl;
+      // std::cout << "min_pt " << min_pt.x   << min_pt.y   << min_pt.z    << std::endl;
+      // std::cout << "max_pt " << max_pt.x   << max_pt.y   << max_pt.z    << std::endl;
 #endif
 
       center.x = (max_pt.x + min_pt.x)/2;
@@ -211,7 +211,7 @@ void EuclideanPlaneSegmentation::update() {
       center.z = 1.01*((max_pt.z + min_pt.z)/2);
 
 #ifdef OUTPUT
-      std::cout << "center " << center.x   << center.y   << center.z    << std::endl;
+      // std::cout << "center " << center.x   << center.y   << center.z    << std::endl;
 #endif
 
         // for each index in each cluster

@@ -31,12 +31,13 @@ Eigen::Vector3f TransformPointToOdo(Eigen::VectorXf point_cam)
     Eigen::Vector3f     r_odo_cam;
 
 
-    std::cout<<"r_odo_cam "<<r_odo_cam<<std::endl;
-    std::cout<<"A_odo_cam "<<A_odo_cam<<std::endl;
-
+    // std::cout<<"r_odo_cam "<<r_odo_cam<<std::endl;
+    // std::cout<<"A_odo_cam "<<A_odo_cam<<std::endl;
+/*
     std::cout<<"point cam "<<point_cam(0)
        <<" "<<point_cam(1)<<" "
        <<point_cam(2)<<" "<<std::endl;
+*/
     point_world(0) = r_odo_cam(0) + A_odo_cam(0,0)*point_cam(0) - A_odo_cam(0,1)*point_cam(1) - A_odo_cam(0,2)*point_cam(2);
     point_world(1) = r_odo_cam(1) + A_odo_cam(1,0)*point_cam(0) - A_odo_cam(1,1)*point_cam(1) - A_odo_cam(1,2)*point_cam(2);
     point_world(2) = r_odo_cam(2) + A_odo_cam(2,0)*point_cam(0) - A_odo_cam(2,1)*point_cam(1) - A_odo_cam(2,2)*point_cam(2);
@@ -46,7 +47,7 @@ Eigen::Vector3f TransformPointToOdo(Eigen::VectorXf point_cam)
     point_world_2(1) = r_odo_cam(1) + A_odo_cam(0,1)*point_cam(0) - A_odo_cam(1,1)*point_cam(1) - A_odo_cam(2,1)*point_cam(2);
     point_world_2(2) = r_odo_cam(2) + A_odo_cam(0,2)*point_cam(0) - A_odo_cam(1,2)*point_cam(1) - A_odo_cam(2,2)*point_cam(2);
 
-
+/*
     std::cout<<"point world "<<point_world(0)
        <<" "<<point_world(1)<<" "
        <<point_world(2)<<" "<<std::endl;
@@ -54,6 +55,7 @@ Eigen::Vector3f TransformPointToOdo(Eigen::VectorXf point_cam)
     std::cout<<"point world_2 "<<point_world_2(0)
        <<" "<<point_world_2(1)<<" "
        <<point_world_2(2)<<" "<<std::endl;
+*/
     return point_world;
 #endif
 
