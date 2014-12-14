@@ -322,7 +322,8 @@ void Fitting_no_Estimation::update() {
       if (radius < 40)
       {
         // save radius
-        coeffs[0] = 40.0;
+        // coeffs[0] = 40.0;
+        coeffs[0] = radius;
       }
       else
       {
