@@ -1,14 +1,19 @@
 #ifndef BASE_OBSTACLE_DETECTOR_H_
 #define BASE_OBSTACLE_DETECTOR_H_
 
+#include <vector>
+
 #include <pcl/visualization/cloud_viewer.h>
 
 #include "lepp2/VideoObserver.hpp"
+#include "lepp2/ObstacleAggregator.hpp"
 
 #include "lepp2/legacy/SegmentationAlgorithm.hpp"
 #include "lepp2/legacy/EuclideanPlaneSegmentation.hpp"
 #include "lepp2/legacy/MomentOfInertiaIdentification.hpp"
 #include "lepp2/legacy/Fitting_no_Estimation.hpp"
+
+using namespace lepp;
 
 
 template<class PointT>
@@ -24,6 +29,12 @@ public:
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 
+  /**
+   * Attaches a new ObstacleAggregator, which will be notified of newly detected
+   * obstacles by this detector.
+   */
+  void attachObstacleAggregator(
+      boost::shared_ptr<ObstacleAggregator> aggregator);
   /**
    * Returns the point cloud that the detector is currently working with.
    *
@@ -50,8 +61,20 @@ public:
     return identifier_;
   }
 
+protected:
+  /**
+   * Notifies any observers about newly detected obstacles.
+   */
+  void notifyObstacles(ObjectModelPtrListPtr models);
+
 private:
   typename pcl::PointCloud<PointT>::ConstPtr cloud_;
+
+  /**
+   * Tracks all attached ObstacleAggregators that wish to be notified of newly
+   * detected obstacles.
+   */
+  std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators;
 
   // TODO These members are naked pointers for now because the legacy code
   //      requires naked pointers... That needs fixing before these can be
@@ -96,11 +119,26 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
 
 template<class PointT>
 void BaseObstacleDetector<PointT>::update() {
-  std::cout << "Running the obstacle detector on the frame..." << std::endl;
   segmenter_->update();
   identifier_->update();
   fitter_->update();
+
+  notifyObstacles(identifier_->getModelList());
 }
 
+template<class PointT>
+void BaseObstacleDetector<PointT>::attachObstacleAggregator(
+    boost::shared_ptr<ObstacleAggregator> aggregator) {
+  aggregators.push_back(aggregator);
+}
+
+template<class PointT>
+void BaseObstacleDetector<PointT>::notifyObstacles(
+    ObjectModelPtrListPtr models) {
+  size_t sz = aggregators.size();
+  for (size_t i = 0; i < sz; ++i) {
+    aggregators[i]->updateObstacles(models);
+  }
+}
 
 #endif
