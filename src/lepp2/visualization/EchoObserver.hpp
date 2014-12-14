@@ -1,6 +1,8 @@
 #ifndef LEPP2_VISUALIZATION_ECHO_OBSERVER_H__
 #define LEPP2_VISUALIZATION_ECHO_OBSERVER_H__
 
+#include "lepp2/VideoObserver.hpp"
+
 namespace lepp {
 
 /**
