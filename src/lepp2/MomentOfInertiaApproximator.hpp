@@ -3,6 +3,9 @@
 
 #include "lepp2/ObjectApproximator.hpp"
 
+#include <deque>
+
+#include <pcl/common/pca.h>
 #include <pcl/common/common.h>
 
 #include "lepp2/legacy/moment_of_inertia_estimation.hpp"
@@ -63,6 +66,14 @@ private:
    */
   boost::shared_ptr<ObjectModel> getSingleApproximation(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
+  /**
+   * Splits the given point_cloud into two parts and places them in the
+   * ``first`` and ``second`` PointCloud references.
+   */
+  void splitCloud(
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
+      pcl::PointCloud<PointT>& first,
+      pcl::PointCloud<PointT>& second);
 
   /**
    * Returns a point representing an estimation of the position of the center
@@ -76,9 +87,34 @@ template<class PointT>
 std::vector<boost::shared_ptr<ObjectModel> >
 MomentOfInertiaObjectApproximator<PointT>::approximate(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+  typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
+  typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
   std::vector<boost::shared_ptr<ObjectModel> > ret;
 
-  ret.push_back(getSingleApproximation(point_cloud));
+  std::deque<PointCloudConstPtr> queue;
+  queue.push_back(point_cloud);
+
+  int iteration = 0;
+  while (!queue.empty()) {
+    PointCloudConstPtr current_cloud = queue[0];
+    queue.pop_front();
+
+    ObjectModelPtr model = getSingleApproximation(current_cloud);
+    // TODO Decide whether the model fits well enough for the current cloud.
+    // For now we fix the number of iterations.
+    if (iteration == 0) {
+      // The approximation should be improved. Try doing it for the split clouds
+      PointCloudPtr first(new pcl::PointCloud<PointT>());
+      PointCloudPtr second(new pcl::PointCloud<PointT>());
+      splitCloud(current_cloud, *first, *second);
+      queue.push_back(first);
+      queue.push_back(second);
+    } else {
+      // Keep the approximation
+      ret.push_back(model);
+    }
+    ++iteration;
+  }
 
   return ret;
 }
@@ -136,6 +172,47 @@ MomentOfInertiaObjectApproximator<PointT>::getSingleApproximation(
   }
 
   return model;
+}
+
+template<class PointT>
+void MomentOfInertiaObjectApproximator<PointT>::splitCloud(
+    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
+    pcl::PointCloud<PointT>& first,
+    pcl::PointCloud<PointT>& second) {
+  // Compute PCA for the input cloud
+  pcl::PCA<PointT> pca;
+  pca.setInputCloud(point_cloud);
+  Eigen::Vector3f eigenvalues = pca.getEigenValues ();
+  Eigen::Matrix3f eigenvectors = pca.getEigenVectors ();
+
+  Eigen::Vector3d main_pca_axis = eigenvectors.col(0).cast<double>();
+
+  // Compute the centroid
+  Eigen::Vector4d centroid;
+  pcl::compute3DCentroid (*point_cloud, centroid);
+
+  /// The plane equation
+  double d = (-1) * (centroid[0] * main_pca_axis[0] +
+      centroid[1] * main_pca_axis[1] +
+      centroid[2] * main_pca_axis[2]);
+
+  // Now divide the input cloud into two clusters based on the splitting plane
+  size_t const sz = point_cloud->size();
+  for (size_t i = 0; i < sz; ++i) {
+    // Boost the precision of the points we are dealing with to make the
+    // calculation more precise.
+    PointT const& original_point = (*point_cloud)[i];
+    Eigen::Vector3f const vector_point = original_point.getVector3fMap();
+    Eigen::Vector3d const point = vector_point.cast<double>();
+    // Decide on which side of the plane the current point is and add it to the
+    // appropriate partition.
+    if (point.dot(main_pca_axis) + d < 0.f) {
+      first.push_back(original_point);
+    } else {
+      second.push_back(original_point);
+    }
+  }
+
 }
 
 template<class PointT>
