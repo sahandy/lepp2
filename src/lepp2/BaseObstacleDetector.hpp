@@ -2,11 +2,14 @@
 #define BASE_OBSTACLE_DETECTOR_H_
 
 #include <vector>
+#include <algorithm>
 
 #include <pcl/visualization/cloud_viewer.h>
 
 #include "lepp2/VideoObserver.hpp"
 #include "lepp2/ObstacleAggregator.hpp"
+#include "lepp2/ObjectApproximator.hpp"
+#include "lepp2/MomentOfInertiaApproximator.hpp"
 
 #include "lepp2/legacy/SegmentationAlgorithm.hpp"
 #include "lepp2/legacy/EuclideanPlaneSegmentation.hpp"
@@ -83,6 +86,8 @@ private:
   IdentificationAlgorithm* identifier_;
   FittingAlgorithm* fitter_;
 
+  boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
+
   /**
    * Performs a new update of the obstacle approximations.
    * Triggered when the detector is notified of a new frame (i.e. point cloud).
@@ -91,7 +96,8 @@ private:
 };
 
 template<class PointT>
-BaseObstacleDetector<PointT>::BaseObstacleDetector() {
+BaseObstacleDetector<PointT>::BaseObstacleDetector()
+    : approximator_(new MomentOfInertiaObjectApproximator<PointT>()) {
   // Instantiate all the dependencies of an obstacle detector
   // TODO Allow for dependency injection.
   segmenter_ = new EuclideanPlaneSegmentation();
@@ -120,10 +126,21 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
 template<class PointT>
 void BaseObstacleDetector<PointT>::update() {
   segmenter_->update();
-  identifier_->update();
-  fitter_->update();
 
-  notifyObstacles(identifier_->getModelList());
+  PointCloudPtrListPtr clusters = segmenter_->getClusterList();
+  size_t segment_count = clusters->size();
+  ObjectModelPtrListPtr models(new ObjectModelPtrList);
+  for (size_t i = 0; i < segment_count; ++i) {
+    std::vector<ObjectModelPtr> approximations =
+      approximator_->approximate(clusters->at(i));
+    // Add all approximations to the final return value.
+    // For now the fact that multiple approximations were a part of one group
+    // is ignored to keep compatibility with the old iterfaces.
+    std::copy(approximations.begin(), approximations.end(),
+              std::back_inserter(*models));
+  }
+
+  notifyObstacles(models);
 }
 
 template<class PointT>
