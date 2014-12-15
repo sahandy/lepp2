@@ -13,8 +13,6 @@
 
 #include "lepp2/legacy/SegmentationAlgorithm.hpp"
 #include "lepp2/legacy/EuclideanPlaneSegmentation.hpp"
-#include "lepp2/legacy/MomentOfInertiaIdentification.hpp"
-#include "lepp2/legacy/Fitting_no_Estimation.hpp"
 
 using namespace lepp;
 
@@ -48,22 +46,6 @@ public:
     return cloud_;
   }
 
-  /**
-   * Return a pointer to the SegmentationAlgorithm that the detector uses.
-   * NOTE: Needed only for the legacy code.
-   */
-  SegmentationAlgorithm* getSegmentationInstance() const {
-    return segmenter_;
-  }
-
-  /**
-   * Return a pointer to the IdentificationAlgorithm that the detector uses.
-   * NOTE: Needed only for the legacy code.
-   */
-  IdentificationAlgorithm* getIdentificationInstance() const {
-    return identifier_;
-  }
-
 protected:
   /**
    * Notifies any observers about newly detected obstacles.
@@ -83,8 +65,6 @@ private:
   //      requires naked pointers... That needs fixing before these can be
   //      wrapped in a safe structure...
   SegmentationAlgorithm* segmenter_;
-  IdentificationAlgorithm* identifier_;
-  FittingAlgorithm* fitter_;
 
   boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
 
@@ -105,12 +85,6 @@ BaseObstacleDetector<PointT>::BaseObstacleDetector()
   // TODO This should really be done on instantiation of the segmenter,
   //      automatically...
   segmenter_->init();
-
-  identifier_ = new MomentOfInertiaIdentification();
-  identifier_->detector_.reset(this);
-
-  fitter_ = new Fitting_no_Estimation();
-  fitter_->detector_.reset(this);
 }
 
 
