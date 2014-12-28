@@ -1,6 +1,8 @@
 #ifndef LEPP2_EUCLIDEAN_PLANE_SEGMENTER_H__
 #define LEPP2_EUCLIDEAN_PLANE_SEGMENTER_H__
 
+#include "lepp2/BaseSegmenter.hpp"
+
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/extract_indices.h>
@@ -8,150 +10,129 @@
 namespace lepp {
 
 /**
- * A segmenter that finds the segments by applying Euclidean plane segmentation.
- *
- * The code for now is just an adaptation of the legacy code to the new
- * interface, with no improvements over the legacy version.
+ * A segmenter that obtains the parts of the point cloud that should be
+ * considered objects by first removing all planes from the original cloud,
+ * followed by applying Euclidean clustering to get the wanted cloud segments.
  */
 template<class PointT>
 class EuclideanPlaneSegmenter : public BaseSegmenter<PointT> {
 public:
-	EuclideanPlaneSegmenter();
-	typedef typename pcl::PointCloud<PointT>::ConstPtr CloudConstPtr;
+  EuclideanPlaneSegmenter();
 
-	virtual std::vector<typename pcl::PointCloud<PointT>::ConstPtr> segment(
-			const typename pcl::PointCloud<PointT>::ConstPtr& cloud);
+  virtual std::vector<typename pcl::PointCloud<PointT>::ConstPtr> segment(
+      const typename pcl::PointCloud<PointT>::ConstPtr& cloud);
 private:
-	pcl::SACSegmentation<PointT> m_segmentation;
-	pcl::EuclideanClusterExtraction<PointT> m_clusterizer;
-	double m_relMinForegroundSize;
+  // Helper typedefs to make the implementation code cleaner
+  typedef pcl::PointCloud<PointT> PointCloudT;
+  typedef typename PointCloudT::ConstPtr CloudConstPtr;
 
-	std::vector<pcl::PointIndices> m_clusterIndices;
+  /**
+   * Instance used to extract the planes from the input cloud.
+   */
+  pcl::SACSegmentation<PointT> segmentation_;
+  /**
+   * Instance used to extract the actual clusters from the input cloud.
+   */
+  pcl::EuclideanClusterExtraction<PointT> clusterizer_;
+  /**
+   * The KdTree will hold the representation of the point cloud which is passed
+   * to the clusterizer.
+   */
+  boost::shared_ptr<pcl::search::KdTree<PointT> > kd_tree_;
 
-	boost::shared_ptr<pcl::PointIndices> m_inliers;
-	boost::shared_ptr<pcl::PointIndices> m_outliers;
-
-	boost::shared_ptr<pcl::search::KdTree<PointT> > m_tree;
-	boost::shared_ptr<std::vector<pcl::ModelCoefficients> > m_coefficients;
+  /**
+   * The percentage of the original cloud that should be kept for the
+   * clusterization, at the least.
+   * We stop removing planes from the original cloud once there are either no
+   * more planes to be removed or when the number of points remaining in the
+   * cloud dips below this percentage of the original cloud.
+   */
+  double const min_filter_percentage_;
 };
 
 template<class PointT>
 EuclideanPlaneSegmenter<PointT>::EuclideanPlaneSegmenter()
-		: m_relMinForegroundSize(0.04),
-      m_coefficients(new std::vector<pcl::ModelCoefficients>()),
-      m_outliers(new pcl::PointIndices()),
-      m_inliers(new pcl::PointIndices()),
-      m_tree(new pcl::search::KdTree<PointT>()) {
-	m_segmentation.setOptimizeCoefficients (true);
-	m_segmentation.setModelType (pcl::SACMODEL_PLANE);
-	m_segmentation.setMethodType (pcl::SAC_RANSAC);
-	m_segmentation.setMaxIterations (200);			// Video 320x240		 300		// Video stampfen: 1500
-	// m_segmentation.setDistanceThreshold (25.0);			// Video 320x240		 25.0		// Video stampfen: 8.0
-	m_segmentation.setDistanceThreshold(0.02);
+    : min_filter_percentage_(0.2),
+      kd_tree_(new pcl::search::KdTree<PointT>()) {
+  // Parameter initialization of the plane segmentation
+  segmentation_.setOptimizeCoefficients(true);
+  segmentation_.setModelType(pcl::SACMODEL_PLANE);
+  segmentation_.setMethodType(pcl::SAC_RANSAC);
+  segmentation_.setMaxIterations(100);
+  segmentation_.setDistanceThreshold(0.02);
 
-	// initialize euclidean clusterization class
-	//m_clusterizer.setClusterTolerance(20.0);			// Video 320x240		 20.0		// Video stampfen: 15.0
-	m_clusterizer.setClusterTolerance(0.02);
-	m_clusterizer.setMinClusterSize(100);			// Video 320x240		 100.0		// Video stampfen: 620
-	m_clusterizer.setMaxClusterSize(310000);
+  // Parameter initialization of the clusterizer
+  clusterizer_.setClusterTolerance(0.03);
+  clusterizer_.setMinClusterSize(100);
+  clusterizer_.setMaxClusterSize(25000);
 }
 
 template<class PointT>
 std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
 EuclideanPlaneSegmenter<PointT>::segment(
-	const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
-	std::vector<CloudConstPtr> ret;
+  const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
+  typename PointCloudT::Ptr cloud_filtered(new PointCloudT());
+  // Remove NaN points from the input cloud.
+  // The pcl API forces us to pass in a reference to the vector, even if we have
+  // no use of it later on ourselves.
+  std::vector<int> index;
+  pcl::removeNaNFromPointCloud<PointT>(*cloud,
+                                       *cloud_filtered,
+                                       index);
 
-	typename pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<PointT>);
-	pcl::ExtractIndices<PointT>	 extract;
-	pcl::ModelCoefficients			coeffs;
-	int	i,j;
-	pcl::PointIndices::Ptr		 tmpOutliers (new pcl::PointIndices);
-	PointT			 min_pt;
-	PointT			 max_pt;
-	PointT			 center;
-	PointT			 object_estimation;
+  // Instance that will be used to perform the elimination of unwanted points
+  // from the point cloud.
+  pcl::ExtractIndices<PointT>  extract;
+  // Will hold the indices of the next extracted plane within the loop
+  pcl::PointIndices::Ptr current_plane_indices(new pcl::PointIndices);
+  // Another instance of when the pcl API requires a parameter that we have no
+  // further use for.
+  pcl::ModelCoefficients coefficients;
+  // Remove planes until we reach x % of the original number of points
+  size_t const original_cloud_size = cloud_filtered->size();
+  size_t const point_threshold = min_filter_percentage_ * original_cloud_size;
+  while (cloud_filtered->size() > point_threshold) {
+    // Try to obtain the next plane...
+    segmentation_.setInputCloud(cloud_filtered);
+    segmentation_.segment(*current_plane_indices, coefficients);
 
-	// clear list of model coefficients, outliers, clusterIndices
-	m_coefficients->clear();
-	m_outliers->indices.clear();
-	m_clusterIndices.clear();
+    // We didn't get any plane in this run. Therefore, there are no more planes
+    // to be removed from the cloud.
+    if (current_plane_indices->indices.size() == 0) {
+      break;
+    }
 
-	boost::shared_ptr<pcl::PointIndices> m_validPoints(new pcl::PointIndices());
-	// find all valid points (!= NaN) in the cloud; save the new cloud to cloud_filtered/cloud_cluster; save the indices to validPoints
-	pcl::removeNaNFromPointCloud<PointT>(*cloud,*cloud_filtered, m_validPoints->indices);
+    // Remove the planar inliers from the input cloud
+    extract.setInputCloud(cloud_filtered);
+    extract.setIndices(current_plane_indices);
+    extract.setNegative(true);
+    extract.filter(*cloud_filtered);
+  }
 
-	//	extract all planes until we reach x % of the original number of points
-	int nrOfPoints = m_validPoints->indices.size();
-	// std::cout << "# of pts " << nrOfPoints << std::endl;
+  // Extract the clusters from such a filtered cloud.
+  kd_tree_->setInputCloud(cloud_filtered);
+  clusterizer_.setSearchMethod(kd_tree_);
+  clusterizer_.setInputCloud(cloud_filtered);
+  std::vector<pcl::PointIndices> m_clusterIndices;
+  clusterizer_.extract(m_clusterIndices);
 
-	int inliers = nrOfPoints;
+  // Now copy the points belonging to each cluster to a separate PointCloud
+  // and finally return a vector of these point clouds.
+  std::vector<CloudConstPtr> ret;
+  size_t const cluster_count = m_clusterIndices.size();
+  for (size_t i = 0; i < cluster_count; ++i) {
+    typename PointCloudT::Ptr current(new PointCloudT());
+    std::vector<int> const& curr_indices = m_clusterIndices[i].indices;
+    size_t const curr_indices_sz = curr_indices.size();
+    for (size_t j = 0; j < curr_indices_sz; ++j) {
+      // add the point to the corresponding point cloud
+      current->push_back(cloud_filtered->at(curr_indices[j]));
+    }
 
-	while (cloud_filtered->size() > m_relMinForegroundSize * nrOfPoints) {
-		// std::cout << "Cloud filtered size " << cloud_filtered->size() << std::endl;
-		// segment the largest planar component from the cloud
-		tmpOutliers->indices.clear();
-		m_segmentation.setInputCloud(cloud_filtered);
-		m_segmentation.segment(*tmpOutliers, coeffs);
+    ret.push_back(current);
+  }
 
-		// add coeffs to list
-		m_coefficients->push_back(coeffs);
-
-		// Extract the planar inliers from the input cloud
-		extract.setInputCloud (cloud_filtered);
-		extract.setIndices (tmpOutliers);
-		extract.setNegative (true);
-		extract.filter (*cloud_filtered);
-
-/*
-				std::cout << "size outliers " << tmpOutliers->indices.size() << std::endl;
-				std::cout << "size point cloud after " << cloud_filtered->size() << std::endl;
-				fflush(stdout);
-*/
-		if (tmpOutliers->indices.size() == 0) {
-
-				// no plane recognized... we're done here
-			break;
-		}
-
-		// copy list of outliers to the global outliers list
-		m_outliers->indices.insert(m_outliers->indices.end(), tmpOutliers->indices.begin(), tmpOutliers->indices.end());
-
-	// std::cout << "size m_outliers " << m_outliers->indices.size() << std::endl;
-
-		// update number of inliers
-		inliers = inliers - tmpOutliers->indices.size();
-
-	}
-
-	// std::cout << "Final size " << cloud_filtered->size() << std::endl;
-	// set search tree input cloud
-	m_tree->setInputCloud(cloud_filtered);
-	m_clusterizer.setSearchMethod(m_tree);
-
-	// set euclidean clusterization input cloud and extract all cluster indices
-	m_clusterizer.setInputCloud(cloud_filtered);
-	m_clusterizer.extract(m_clusterIndices);
-
-	/* The individual clusters are known now.
-	 * Create PointCloud instances from the clusterIndices.
-	 */
-
-	// std::cout << "Number of Clusters: " << m_clusterIndices.size() << std::endl;
-
-	// Now copy the points to each PointCloud
-	#pragma omp parallel for
-	for (i = 0; i < m_clusterIndices.size();++i) {
-		typename pcl::PointCloud<PointT>::Ptr current(new pcl::PointCloud<PointT>());
-		for (j = 0; j < m_clusterIndices.at(i).indices.size();j+=6) {
-			// add the point to the corresponding point cloud
-			current->push_back(cloud_filtered->at(m_clusterIndices.at(i).indices.at(j)));
-		}
-
-		ret.push_back(current);
-	}
-
-	return ret;
+  return ret;
 }
 
 
