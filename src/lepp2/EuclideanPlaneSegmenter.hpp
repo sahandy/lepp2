@@ -6,6 +6,8 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
+
 
 namespace lepp {
 
@@ -79,6 +81,12 @@ EuclideanPlaneSegmenter<PointT>::segment(
   pcl::removeNaNFromPointCloud<PointT>(*cloud,
                                        *cloud_filtered,
                                        index);
+
+  // Next, downsample the input cloud to leaves of size 1cm
+  pcl::VoxelGrid<pcl::PointXYZ> vg;
+  vg.setInputCloud(cloud_filtered);
+  vg.setLeafSize(0.01f, 0.01f, 0.01f);
+  vg.filter(*cloud_filtered);
 
   // Instance that will be used to perform the elimination of unwanted points
   // from the point cloud.
