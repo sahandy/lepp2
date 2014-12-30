@@ -60,7 +60,6 @@ void ObstacleVisualizer<PointT>::drawShapes(
     std::ostringstream ss;
     ss << obstacles->at(i)->getType() << "(" << i << ")";
     std::string const shape_name(ss.str());
-    std::cout << "Visualizing ``" << shape_name << "``" << std::endl;
     // Delegate to the Model to draw itself on the viewer.
     obstacles->at(i)->draw(viewer, shape_name, 0.5f, 0.5f, 0.0f);
   }
