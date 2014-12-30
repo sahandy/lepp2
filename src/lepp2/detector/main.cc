@@ -11,6 +11,8 @@
 #include "lepp2/GrabberVideoSource.hpp"
 #include "lepp2/BaseVideoSource.hpp"
 #include "lepp2/VideoObserver.hpp"
+#include "lepp2/FilteredVideoSource.hpp"
+#include "lepp2/SmoothObstacleAggregator.hpp"
 
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
@@ -66,11 +68,14 @@ boost::shared_ptr<SimpleVideoSource> GetVideoSource(int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
   // Obtain a video source based on the command line arguments received
-  boost::shared_ptr<SimpleVideoSource> source(GetVideoSource(argc, argv));
-  if (!source) {
+  boost::shared_ptr<SimpleVideoSource> raw_source(GetVideoSource(argc, argv));
+  if (!raw_source) {
     PrintUsage();
     return 1;
   }
+  // Wrap the raw source in a filter
+  boost::shared_ptr<SimpleVideoSource> source(
+      new FilteredVideoSource<SimplePoint>(raw_source));
 
   // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(
@@ -87,7 +92,11 @@ int main(int argc, char* argv[]) {
   source->attachObserver(visualizer);
   // Attaching the visualizer to the detector: allow it to display the obstacle
   // approximations.
-  detector->attachObstacleAggregator(visualizer);
+  // The visualizer is additionally decorated by the "smoothener" to smooth out
+  // the output...
+  boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
+      new SmoothObstacleAggregator(*visualizer));
+  detector->attachObstacleAggregator(smooth_decorator);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
