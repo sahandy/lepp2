@@ -26,7 +26,37 @@ public:
 private:
   // Helper typedefs to make the implementation code cleaner
   typedef pcl::PointCloud<PointT> PointCloudT;
+  typedef typename PointCloudT::Ptr PointCloudPtr;
   typedef typename PointCloudT::ConstPtr CloudConstPtr;
+
+  // Private helper member functions
+  /**
+   * Performs some initial preprocessing and filtering appropriate for the
+   * segmentation algorithm.
+   * Takes the original cloud as a parameter and returns a pointer to a newly
+   * created (and allocated) cloud containing the result of the filtering.
+   */
+  PointCloudPtr preprocessCloud(CloudConstPtr const& cloud);
+  /**
+   * Removes all planes from the given point cloud.
+   */
+  void removePlanes(PointCloudPtr const& cloud_filtered);
+  /**
+   * Extracts the Euclidean clusters from the given point cloud.
+   * Returns a vector where each element represents the pcl::PointIndices
+   * instance representing the corresponding cluster.
+   */
+  std::vector<pcl::PointIndices> getClusters(
+      PointCloudPtr const& cloud_filtered);
+  /**
+   * Convert the clusters represented by the given indices to point clouds,
+   * by copying the corresponding points from the cloud to the corresponding
+   * new point cloud.
+   */
+  std::vector<CloudConstPtr> clustersToPointClouds(
+      CloudConstPtr const& cloud_filtered,
+      std::vector<pcl::PointIndices> const& cluster_indices);
+
 
   /**
    * Instance used to extract the planes from the input cloud.
@@ -70,13 +100,13 @@ EuclideanPlaneSegmenter<PointT>::EuclideanPlaneSegmenter()
 }
 
 template<class PointT>
-std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
-EuclideanPlaneSegmenter<PointT>::segment(
-  const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
-  typename PointCloudT::Ptr cloud_filtered(new PointCloudT());
+typename pcl::PointCloud<PointT>::Ptr
+EuclideanPlaneSegmenter<PointT>::preprocessCloud(
+    CloudConstPtr const& cloud) {
   // Remove NaN points from the input cloud.
   // The pcl API forces us to pass in a reference to the vector, even if we have
   // no use of it later on ourselves.
+  PointCloudPtr cloud_filtered(new PointCloudT());
   std::vector<int> index;
   pcl::removeNaNFromPointCloud<PointT>(*cloud,
                                        *cloud_filtered,
@@ -88,6 +118,12 @@ EuclideanPlaneSegmenter<PointT>::segment(
   vg.setLeafSize(0.01f, 0.01f, 0.01f);
   vg.filter(*cloud_filtered);
 
+  return cloud_filtered;
+}
+
+template<class PointT>
+void EuclideanPlaneSegmenter<PointT>::removePlanes(
+    PointCloudPtr const& cloud_filtered) {
   // Instance that will be used to perform the elimination of unwanted points
   // from the point cloud.
   pcl::ExtractIndices<PointT>  extract;
@@ -116,21 +152,33 @@ EuclideanPlaneSegmenter<PointT>::segment(
     extract.setNegative(true);
     extract.filter(*cloud_filtered);
   }
+}
 
+template<class PointT>
+std::vector<pcl::PointIndices> EuclideanPlaneSegmenter<PointT>::getClusters(
+    PointCloudPtr const& cloud_filtered) {
   // Extract the clusters from such a filtered cloud.
   kd_tree_->setInputCloud(cloud_filtered);
   clusterizer_.setSearchMethod(kd_tree_);
   clusterizer_.setInputCloud(cloud_filtered);
-  std::vector<pcl::PointIndices> m_clusterIndices;
-  clusterizer_.extract(m_clusterIndices);
+  std::vector<pcl::PointIndices> cluster_indices;
+  clusterizer_.extract(cluster_indices);
 
+  return cluster_indices;
+}
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
+EuclideanPlaneSegmenter<PointT>::clustersToPointClouds(
+    CloudConstPtr const& cloud_filtered,
+    std::vector<pcl::PointIndices> const& cluster_indices) {
   // Now copy the points belonging to each cluster to a separate PointCloud
   // and finally return a vector of these point clouds.
   std::vector<CloudConstPtr> ret;
-  size_t const cluster_count = m_clusterIndices.size();
+  size_t const cluster_count = cluster_indices.size();
   for (size_t i = 0; i < cluster_count; ++i) {
     typename PointCloudT::Ptr current(new PointCloudT());
-    std::vector<int> const& curr_indices = m_clusterIndices[i].indices;
+    std::vector<int> const& curr_indices = cluster_indices[i].indices;
     size_t const curr_indices_sz = curr_indices.size();
     for (size_t j = 0; j < curr_indices_sz; ++j) {
       // add the point to the corresponding point cloud
@@ -141,6 +189,16 @@ EuclideanPlaneSegmenter<PointT>::segment(
   }
 
   return ret;
+}
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
+EuclideanPlaneSegmenter<PointT>::segment(
+    const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
+  PointCloudPtr cloud_filtered = preprocessCloud(cloud);
+  removePlanes(cloud_filtered);
+  std::vector<pcl::PointIndices> cluster_indices = getClusters(cloud_filtered);
+  return clustersToPointClouds(cloud_filtered, cluster_indices);
 }
 
 
