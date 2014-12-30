@@ -7,12 +7,12 @@
 #include <pcl/visualization/cloud_viewer.h>
 
 #include "lepp2/VideoObserver.hpp"
+#include "lepp2/BaseSegmenter.hpp"
+#include "lepp2/NoopSegmenter.hpp"
+#include "lepp2/EuclideanPlaneSegmenter.hpp"
 #include "lepp2/ObstacleAggregator.hpp"
 #include "lepp2/ObjectApproximator.hpp"
 #include "lepp2/MomentOfInertiaApproximator.hpp"
-
-#include "lepp2/legacy/SegmentationAlgorithm.hpp"
-#include "lepp2/legacy/EuclideanPlaneSegmentation.hpp"
 
 using namespace lepp;
 
@@ -47,6 +47,10 @@ public:
   }
 
 protected:
+  /// Some convenience typedefs
+  typedef pcl::PointCloud<PointT> PointCloud;
+  typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
+
   /**
    * Notifies any observers about newly detected obstacles.
    */
@@ -61,11 +65,7 @@ private:
    */
   std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators;
 
-  // TODO These members are naked pointers for now because the legacy code
-  //      requires naked pointers... That needs fixing before these can be
-  //      wrapped in a safe structure...
-  SegmentationAlgorithm* segmenter_;
-
+  boost::shared_ptr<BaseSegmenter<PointT> > segmenter_;
   boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
 
   /**
@@ -77,14 +77,9 @@ private:
 
 template<class PointT>
 BaseObstacleDetector<PointT>::BaseObstacleDetector()
-    : approximator_(new MomentOfInertiaObjectApproximator<PointT>()) {
-  // Instantiate all the dependencies of an obstacle detector
+    : approximator_(new MomentOfInertiaObjectApproximator<PointT>()),
+      segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
   // TODO Allow for dependency injection.
-  segmenter_ = new EuclideanPlaneSegmentation();
-  segmenter_->detector_.reset(this);
-  // TODO This should really be done on instantiation of the segmenter,
-  //      automatically...
-  segmenter_->init();
 }
 
 
@@ -99,14 +94,14 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
 
 template<class PointT>
 void BaseObstacleDetector<PointT>::update() {
-  segmenter_->update();
+  std::vector<PointCloudConstPtr> segments(segmenter_->segment(cloud_));
 
-  PointCloudPtrListPtr clusters = segmenter_->getClusterList();
-  size_t segment_count = clusters->size();
+  // Iteratively approximate the segments
+  size_t segment_count = segments.size();
   ObjectModelPtrListPtr models(new ObjectModelPtrList);
   for (size_t i = 0; i < segment_count; ++i) {
     std::vector<ObjectModelPtr> approximations =
-      approximator_->approximate(clusters->at(i));
+      approximator_->approximate(segments[i]);
     // Add all approximations to the final return value.
     // For now the fact that multiple approximations were a part of one group
     // is ignored to keep compatibility with the old iterfaces.
