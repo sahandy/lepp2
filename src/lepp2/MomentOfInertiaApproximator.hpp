@@ -182,19 +182,21 @@ void MomentOfInertiaObjectApproximator<PointT>::splitCloud(
   // Compute PCA for the input cloud
   pcl::PCA<PointT> pca;
   pca.setInputCloud(point_cloud);
-  Eigen::Vector3f eigenvalues = pca.getEigenValues ();
-  Eigen::Matrix3f eigenvectors = pca.getEigenVectors ();
+  Eigen::Vector3f eigenvalues = pca.getEigenValues();
+  Eigen::Matrix3f eigenvectors = pca.getEigenVectors();
 
   Eigen::Vector3d main_pca_axis = eigenvectors.col(0).cast<double>();
 
   // Compute the centroid
   Eigen::Vector4d centroid;
-  pcl::compute3DCentroid (*point_cloud, centroid);
+  pcl::compute3DCentroid(*point_cloud, centroid);
 
   /// The plane equation
-  double d = (-1) * (centroid[0] * main_pca_axis[0] +
+  double d = (-1) * (
+      centroid[0] * main_pca_axis[0] +
       centroid[1] * main_pca_axis[1] +
-      centroid[2] * main_pca_axis[2]);
+      centroid[2] * main_pca_axis[2]
+  );
 
   // Now divide the input cloud into two clusters based on the splitting plane
   size_t const sz = point_cloud->size();
@@ -206,7 +208,7 @@ void MomentOfInertiaObjectApproximator<PointT>::splitCloud(
     Eigen::Vector3d const point = vector_point.cast<double>();
     // Decide on which side of the plane the current point is and add it to the
     // appropriate partition.
-    if (point.dot(main_pca_axis) + d < 0.f) {
+    if (point.dot(main_pca_axis) + d < 0.) {
       first.push_back(original_point);
     } else {
       second.push_back(original_point);
