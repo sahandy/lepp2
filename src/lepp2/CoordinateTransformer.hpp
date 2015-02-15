@@ -25,6 +25,15 @@ public:
   virtual void prepareNext() = 0;
 };
 
+template<class PointT>
+class NullCoordinateTransformer : public CoordinateTransformer<PointT> {
+public:
+  PointT transformPoint(PointT const& original) {
+    return original;
+  }
+  void prepareNext() {}
+};
+
 }  // namespace lepp
 
 #endif
