@@ -91,7 +91,7 @@ EuclideanPlaneSegmenter<PointT>::EuclideanPlaneSegmenter()
   segmentation_.setModelType(pcl::SACMODEL_PLANE);
   segmentation_.setMethodType(pcl::SAC_RANSAC);
   segmentation_.setMaxIterations(100);
-  segmentation_.setDistanceThreshold(0.02);
+  segmentation_.setDistanceThreshold(0.05);
 
   // Parameter initialization of the clusterizer
   clusterizer_.setClusterTolerance(0.03);
