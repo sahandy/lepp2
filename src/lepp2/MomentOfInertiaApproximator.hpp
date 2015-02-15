@@ -164,11 +164,10 @@ MomentOfInertiaObjectApproximator<PointT>::getSingleApproximation(
     performFitting(cylinder, point_cloud, mass_center, axes);
     model = cylinder;
   } else {
-    // Triangles were being used as a catch-all when nothing else worked.
-    boost::shared_ptr<TriangleModel> triangle =
-        m_preallocator_triangle.newInstance();
-    performFitting(triangle, point_cloud, mass_center, axes);
-    model = triangle;
+    // The fall-back is a sphere
+    boost::shared_ptr<SphereModel> sphere = m_preallocator_sphere.newInstance();
+    performFitting(sphere, point_cloud, mass_center, axes);
+    model = sphere;
   }
 
   return model;
