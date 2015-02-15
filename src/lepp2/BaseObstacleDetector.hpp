@@ -16,6 +16,7 @@
 
 using namespace lepp;
 
+#include "lepp2/debug/timer.hpp"
 
 template<class PointT>
 class BaseObstacleDetector : public lepp::VideoObserver<PointT> {
@@ -94,6 +95,8 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
 
 template<class PointT>
 void BaseObstacleDetector<PointT>::update() {
+  Timer t;
+  t.start();
   std::vector<PointCloudConstPtr> segments(segmenter_->segment(cloud_));
 
   // Iteratively approximate the segments
@@ -108,6 +111,8 @@ void BaseObstacleDetector<PointT>::update() {
     std::copy(approximations.begin(), approximations.end(),
               std::back_inserter(*models));
   }
+  t.stop();
+  std::cerr << "Obstacle detection took " << t.duration() << std::endl;
 
   notifyObstacles(models);
 }
