@@ -2,6 +2,7 @@
 #define GRABBER_VIDEO_SOURCE_H_
 
 #include "BaseVideoSource.hpp"
+#include <pcl/io/openni_grabber.h>
 
 namespace lepp {
 
@@ -72,8 +73,8 @@ template<class PointT>
 class LiveStreamSource : public GeneralGrabberVideoSource<PointT> {
 public:
   LiveStreamSource()
-      : GeneralGrabberVideoSource<PointT>(
-            boost::shared_ptr<pcl::Grabber>(new pcl::OpenNIGrabber())) {
+      : GeneralGrabberVideoSource<PointT>(boost::shared_ptr<pcl::Grabber>(
+            new pcl::OpenNIGrabber("", pcl::OpenNIGrabber::OpenNI_QVGA_30Hz))) {
     // Empty... All work performed in the initializer list.
   }
 };
