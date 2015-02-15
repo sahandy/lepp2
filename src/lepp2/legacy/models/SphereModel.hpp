@@ -41,10 +41,10 @@ public:
     */
     void setModelCoefficients(const Eigen::VectorXf& coeffs) {
 
-      radius = coeffs[0];
-      p1_notrans.x = coeffs[1];
-      p1_notrans.y = coeffs[2];
-      p1_notrans.z = coeffs[3];
+      radius = static_cast<int>(coeffs[0] * 100.) / 100.;
+      p1_notrans.x = static_cast<int>(coeffs[1] * 100 ) / 100.;
+      p1_notrans.y = static_cast<int>(coeffs[2] * 100) / 100.;
+      p1_notrans.z = static_cast<int>(coeffs[3] * 100) / 100.;
       p1_trans.x = coeffs[4];
       p1_trans.y = coeffs[5];
       p1_trans.z = coeffs[6];
