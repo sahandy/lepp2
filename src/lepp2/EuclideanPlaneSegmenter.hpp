@@ -112,12 +112,6 @@ EuclideanPlaneSegmenter<PointT>::preprocessCloud(
                                        *cloud_filtered,
                                        index);
 
-  // Next, downsample the input cloud to leaves of size 1cm
-  pcl::VoxelGrid<pcl::PointXYZ> vg;
-  vg.setInputCloud(cloud_filtered);
-  vg.setLeafSize(0.01f, 0.01f, 0.01f);
-  vg.filter(*cloud_filtered);
-
   return cloud_filtered;
 }
 
