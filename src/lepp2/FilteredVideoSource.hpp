@@ -5,6 +5,8 @@
 #include "lepp2/VideoObserver.hpp"
 #include <boost/enable_shared_from_this.hpp>
 
+#include "lepp2/debug/timer.hpp"
+
 struct MapPoint {
   int x;
   int y;
@@ -78,6 +80,9 @@ template<class PointT>
 void FilteredVideoSource<PointT>::notifyNewFrame(
     int idx,
     const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
+  Timer t;
+  t.start();
+
   // Process the cloud received from the wrapped instance
   typename PointCloudType::Ptr cloud_filtered(new PointCloudType());
 
@@ -103,6 +108,8 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
     cloud_filtered->push_back(p);
   }
 
+  t.stop();
+  std::cerr << "Filtering took " << t.duration() << std::endl;
   // Finally, the cloud that is emitted by this instance is the filtered cloud.
   this->setNextFrame(cloud_filtered);
 }
