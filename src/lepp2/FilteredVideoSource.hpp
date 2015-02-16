@@ -5,6 +5,25 @@
 #include "lepp2/VideoObserver.hpp"
 #include <boost/enable_shared_from_this.hpp>
 
+struct MapPoint {
+  int x;
+  int y;
+  int z;
+  MapPoint(int x, int y, int z) : x(x), y(y), z(z) {}
+  MapPoint() {}
+};
+
+bool operator==(MapPoint const& lhs, MapPoint const& rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+}
+
+size_t hash_value(MapPoint const& pt) {
+  std::size_t seed = 0;
+  boost::hash_combine(seed, pt.x);
+  boost::hash_combine(seed, pt.y);
+  boost::hash_combine(seed, pt.z);
+  return seed;
+}
 
 /**
  * A VideoSource decorator.  It wraps a given VideoSource instance and emits
