@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
   }
   // Wrap the raw source in a filter
   boost::shared_ptr<SimpleVideoSource> source(
-      new FilteredVideoSource<SimplePoint>(raw_source));
+      new SimpleFilteredVideoSource<SimplePoint>(raw_source));
 
   // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(

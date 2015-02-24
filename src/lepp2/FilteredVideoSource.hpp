@@ -3,10 +3,16 @@
 
 #include "lepp2/BaseVideoSource.hpp"
 #include "lepp2/VideoObserver.hpp"
+#include "lepp2/filter/PointFilter.hpp"
+
 #include <boost/enable_shared_from_this.hpp>
 
 #include "lepp2/debug/timer.hpp"
 
+/**
+ * A struct that is used to describe a single point in space that can be used
+ * to index sets and maps of such points.
+ */
 struct MapPoint {
   int x;
   int y;
@@ -15,10 +21,17 @@ struct MapPoint {
   MapPoint() {}
 };
 
+/**
+ * Structs that are to be placed in associative containers must be comparable.
+ */
 bool operator==(MapPoint const& lhs, MapPoint const& rhs) {
   return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
+/**
+ * Provides a hash value for a `MapPoint` in order to allow for it to be
+ * placed in boost's map and set.
+ */
 size_t hash_value(MapPoint const& pt) {
   std::size_t seed = 0;
   boost::hash_combine(seed, pt.x);
@@ -28,12 +41,26 @@ size_t hash_value(MapPoint const& pt) {
 }
 
 /**
+ * ABC.
  * A VideoSource decorator.  It wraps a given VideoSource instance and emits
  * clouds that are filtered versions of the original raw cloud returned by the
  * wrapped `VideoSource`.
  *
- * The filters applied to the original cloud are hard coded to the implementation
- * (for now).
+ * The cloud it receives is first filtered by applying a number of point-wise
+ * filters to each point. The filters that are applied to points (if any) are
+ * set dynamically (`setFilter` method).
+ *
+ * Then, it delegates to a concrete implementation which needs to handle the
+ * cloud-level filtering.
+ *
+ * Concrete implementations need to provide implementations for three protected
+ * hook methods that handle the full-cloud filtering at various stages: before
+ * the original cloud's points are transformed, after a particular point is
+ * transformed, and finally after all points have been transformed.
+ *
+ * This ABC provides the plumbing required to turn the filtered source into a
+ * `VideoSource` making it simple to implement a concrete filter by simply
+ * providing implementations for the mentioned hooks.
  */
 template<class PointT>
 class FilteredVideoSource
@@ -61,11 +88,53 @@ public:
   virtual void notifyNewFrame(
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& cloud);
+
+  /**
+   * Add a filter that will be applied to individual points before the entire
+   * cloud itself is filtered.
+   */
+  void addFilter(boost::shared_ptr<PointFilter<PointT> > filter) {
+    point_filters_.push_back(filter);
+  }
+
+protected:
+  /**
+   * A hook method that concrete implementations of the `FilteredVideoSource`
+   * should implement in order to prepare for a new frame's filtering.
+   */
+  virtual void newFrame() = 0;
+  /**
+   * A hook method that concrete implementations of the `FilteredVideoSource`
+   * should implement to handle new points received in the latest frame.
+   *
+   * It receives a reference to the cloud that will contain the final filtered
+   * representation already, if the implementation wishes to examine or modify
+   * it.
+   */
+  virtual void newPoint(PointT& p, PointCloudType& filtered) = 0;
+  /**
+   * A hook method that concrete implementations of the `FilteredVideoSource`
+   * should implement to return the filtered cloud assembled from the points
+   * given by the `newPoint` calls since the previous `newFrame` call.
+   * Implementations are free to take into account any historic data and throw
+   * away or otherwise modify the points given in `newPoint` calls, though.
+   *
+   * The filtered cloud should be put into the cloud instance passed as the
+   * parameter.
+   */
+  virtual void getFiltered(PointCloudType& filtered) = 0;
+
 private:
   /**
    * The VideoSource instance that will be filtered by this instance.
    */
   boost::shared_ptr<VideoSource<PointT> > source_;
+  /**
+   * The filters that are applied to individual points (in the order found in
+   * the vector) before passing it off to the concrete cloud filter
+   * implementation.
+   */
+  std::vector<boost::shared_ptr<PointFilter<PointT> > > point_filters_;
 };
 
 template<class PointT>
@@ -83,14 +152,25 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   Timer t;
   t.start();
 
-  // Process the cloud received from the wrapped instance
-  typename PointCloudType::Ptr cloud_filtered(new PointCloudType());
+  // Prepare the point-wise filters for a new frame.
+  {
+    size_t sz = point_filters_.size();
+    for (size_t i = 0; i < sz; ++i) {
+      point_filters_[i]->prepareNext();
+    }
+  }
+  // Prepare the concrete cloud filter implementation for a new frame.
+  this->newFrame();
 
-  // We remove any NaN points and clamp the rest to exactly 2 decimal digits.
-  // This helps make the cloud more uniform, since anything after the second
-  // decimal is either noise or not useful information.
+  // Process the cloud received from the wrapped instance and put the filtered
+  // result in a new point cloud.
+  typename PointCloudType::Ptr cloud_filtered(new PointCloudType());
+  PointCloudType& filtered = *cloud_filtered;
   cloud_filtered->is_dense = true;
   cloud_filtered->sensor_origin_ = cloud->sensor_origin_;
+
+  // Apply point-wise filters to each received point and then pass it to the
+  // concrete implementation to figure out how to filter the entire cloud.
   for (typename pcl::PointCloud<PointT>::const_iterator it = cloud->begin();
         it != cloud->end();
         ++it) {
@@ -100,19 +180,40 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
     if (!pcl_isfinite(p.x) || !pcl_isfinite(p.y) || !pcl_isfinite(p.z)) {
       continue;
     }
-    // Truncate the point to 2 decimals
-    double const decimals = 100;
-    p.x = static_cast<int>((p.x * decimals)) / decimals;
-    p.y = static_cast<int>((p.y * decimals)) / decimals;
-    p.z = static_cast<int>((p.z * decimals)) / decimals;
-    cloud_filtered->push_back(p);
+
+    // Now apply point-wise filters.
+    size_t const sz = point_filters_.size();
+    for (size_t i = 0; i < sz; ++i) {
+      point_filters_[i]->apply(p);
+    }
+    // And pass such a filtered/modified point to the cloud-level filter.
+    this->newPoint(p, filtered);
   }
 
+  // Now we obtain the fully filtered cloud...
+  this->getFiltered(filtered);
+  // ...and we're done!
   t.stop();
+
+  std::cerr << "Total included points " << cloud_filtered->size() << std::endl;
   std::cerr << "Filtering took " << t.duration() << std::endl;
   // Finally, the cloud that is emitted by this instance is the filtered cloud.
   this->setNextFrame(cloud_filtered);
 }
 
+/**
+ * An implementation of a `FilteredVideoSource` that only applies the
+ * point-wise filters, without performing any additional cloud-level filtering.
+ */
+template<class PointT>
+class SimpleFilteredVideoSource : public FilteredVideoSource<PointT> {
+public:
+  SimpleFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source)
+      : FilteredVideoSource<PointT>(source) {}
+protected:
+  void newFrame() {}
+  void newPoint(PointT& p, PointCloudType& filtered) { filtered.push_back(p); }
+  void getFiltered(PointCloudType& filtered) {}
+};
 
 #endif
