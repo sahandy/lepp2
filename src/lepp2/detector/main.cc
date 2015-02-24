@@ -16,6 +16,7 @@
 
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
+#include "lepp2/lola/OdoCoordinateTransformer.hpp"
 
 #include "lepp2/filter/TruncateFilter.hpp"
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
@@ -49,6 +50,11 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
     double const b = -0.0100851;
     boost::shared_ptr<PointFilter<SimplePoint> > filter(
         new SensorCalibrationFilter<SimplePoint>(a, b));
+    source->addFilter(filter);
+  }
+  {
+    boost::shared_ptr<PointFilter<SimplePoint> > filter(
+        new OdoCoordinateTransformer<SimplePoint>("in.log"));
     source->addFilter(filter);
   }
   {
