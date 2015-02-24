@@ -17,6 +17,9 @@
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
 
+#include "lepp2/filter/TruncateFilter.hpp"
+#include "lepp2/filter/SensorCalibrationFilter.hpp"
+
 using namespace lepp;
 
 /**
@@ -29,6 +32,32 @@ void PrintUsage() {
   std::cout << "--oni    : " << "read the input from an .oni file" << std::endl;
   std::cout << "--stream : " << "read the input from a live stream based on a"
       << " sensor attached to the computer" << std::endl;
+}
+
+/**
+ * Builds a `FilteredVideoSource` instance that wraps the given raw source.
+ */
+template<class PointT>
+boost::shared_ptr<FilteredVideoSource<PointT> >
+buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
+  // Wrap the given raw source.
+  boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
+      new SimpleFilteredVideoSource<SimplePoint>(raw));
+  // Now set the point filters that should be used.
+  {
+    double const a = 1.0117;
+    double const b = -0.0100851;
+    boost::shared_ptr<PointFilter<SimplePoint> > filter(
+        new SensorCalibrationFilter<SimplePoint>(a, b));
+    source->addFilter(filter);
+  }
+  {
+    boost::shared_ptr<PointFilter<SimplePoint> > filter(
+        new TruncateFilter<SimplePoint>(2));
+    source->addFilter(filter);
+  }
+
+  return source;
 }
 
 /**
@@ -74,9 +103,8 @@ int main(int argc, char* argv[]) {
     return 1;
   }
   // Wrap the raw source in a filter
-  boost::shared_ptr<SimpleVideoSource> source(
-      new SimpleFilteredVideoSource<SimplePoint>(raw_source));
-
+  boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
+      buildFilteredSource(raw_source));
   // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(
       new BaseObstacleDetector<SimplePoint>());
