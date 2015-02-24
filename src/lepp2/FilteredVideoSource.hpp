@@ -5,7 +5,12 @@
 #include "lepp2/VideoObserver.hpp"
 #include "lepp2/filter/PointFilter.hpp"
 
+#include <algorithm>
+
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
+#include <boost/circular_buffer.hpp>
 
 #include "lepp2/debug/timer.hpp"
 
@@ -214,6 +219,56 @@ protected:
   void newFrame() {}
   void newPoint(PointT& p, PointCloudType& filtered) { filtered.push_back(p); }
   void getFiltered(PointCloudType& filtered) {}
+};
+
+/**
+ * An implementation of a `FilteredVideoSource` where points are included only
+ * if they have been seen in a certain percentage of frames of the last N
+ * frames.
+ */
+template<class PointT>
+class ProbFilteredVideoSource : public FilteredVideoSource<PointT> {
+public:
+  ProbFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source)
+      : FilteredVideoSource<PointT>(source) {}
+protected:
+  void newFrame() { this_frame_.clear(); }
+
+  void newPoint(PointT& p, PointCloudType& filtered) {
+    MapPoint map_point = MapPoint(p.x * 100, p.y * 100, p.z * 100);
+    boost::circular_buffer<bool>& ref = all_points_[map_point];
+    // TODO Factor out the percentage and number of frames that are considered
+    //      to a member constant.
+    if (ref.capacity() == 0) {
+      ref.set_capacity(30);
+    }
+    ref.push_back(true);
+    this_frame_.insert(map_point);
+  }
+
+  void getFiltered(PointCloudType& filtered) {
+    boost::unordered_map<MapPoint, boost::circular_buffer<bool> >::iterator it =
+        all_points_.begin();
+    while (it != all_points_.end()) {
+      if (this_frame_.find(it->first) == this_frame_.end()) {
+        // it->second = 0.9*it->second + 0.1*0.;
+        it->second.push_back(false);
+      }
+      unsigned char const count = std::accumulate(
+          it->second.begin(), it->second.end(), 0);
+      if (count >= 10) {
+        PointT pt;
+        pt.x = it->first.x / 100.;
+        pt.y = it->first.y / 100.;
+        pt.z = it->first.z / 100.;
+        filtered.push_back(pt);
+      }
+      ++it;
+    }
+  }
+private:
+  boost::unordered_set<MapPoint> this_frame_;
+  boost::unordered_map<MapPoint, boost::circular_buffer<bool> > all_points_;
 };
 
 #endif
