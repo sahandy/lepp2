@@ -17,9 +17,6 @@
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
 
-#include "lola/OdoCoordinateTransformer.hpp"
-#include "lola/LolaAggregator.hpp"
-
 #include "lepp2/filter/TruncateFilter.hpp"
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
@@ -29,14 +26,12 @@ using namespace lepp;
  * Prints out the expected CLI usage of the program.
  */
 void PrintUsage() {
-  std::cout << "usage: detector [--pcd file | --oni file | --stream] [--lola]"
+  std::cout << "usage: detector [--pcd file | --oni file | --stream]"
       << std::endl;
   std::cout << "--pcd    : " << "read the input from a .pcd file" << std::endl;
   std::cout << "--oni    : " << "read the input from an .oni file" << std::endl;
   std::cout << "--stream : " << "read the input from a live stream based on a"
       << " sensor attached to the computer" << std::endl;
-  std::cout << "--lola   : " << "whether obstacles should be sent to LOLA"
-      << std::endl;
 }
 
 /**
@@ -54,11 +49,6 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
     double const b = -0.0100851;
     boost::shared_ptr<PointFilter<SimplePoint> > filter(
         new SensorCalibrationFilter<SimplePoint>(a, b));
-    source->addFilter(filter);
-  }
-  {
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new FileOdoTransformer<SimplePoint>("in.log"));
     source->addFilter(filter);
   }
   {
@@ -105,19 +95,6 @@ boost::shared_ptr<SimpleVideoSource> GetVideoSource(int argc, char* argv[]) {
   return boost::shared_ptr<SimpleVideoSource>();
 }
 
-/**
- * Checks whether the CLI parameters indicate that the detector should run with
- * LOLA-specific configuration.
- *
- * This is true iff a `--lola` flag was passed to the executable.
- */
-bool isLola(int argc, char* argv[]) {
-  for (int i = 0; i < argc; ++i) {
-    if (std::string(argv[i]) == "--lola") return true;
-  }
-  return false;
-}
-
 int main(int argc, char* argv[]) {
   // Obtain a video source based on the command line arguments received
   boost::shared_ptr<SimpleVideoSource> raw_source(GetVideoSource(argc, argv));
@@ -125,10 +102,6 @@ int main(int argc, char* argv[]) {
     PrintUsage();
     return 1;
   }
-  // Temporarily, this executable also handles lola-specifics. The only thing
-  // for now is basically the communication (lola-specific aggregator). It is
-  // used only when a --lola flag is passed to the detector.
-  bool lola = isLola(argc, argv);
   // Wrap the raw source in a filter
   boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
       buildFilteredSource(raw_source));
@@ -151,16 +124,6 @@ int main(int argc, char* argv[]) {
   // Attaching the visualizer to the detector: allow it to display the obstacle
   // approximations.
   detector->attachObstacleAggregator(visualizer);
-
-  // Do we need to do LOLA-specific configuration?
-  if (lola) {
-    std::cout << "LOLA-specific configuration is used!" << std::endl;
-    boost::shared_ptr<LolaAggregator> lola(
-        new LolaAggregator("127.0.0.1", 53250));
-    // Attaches LOLA to the raw detector: no post-processing of obstacles is
-    // performed in this case.
-    detector->attachObstacleAggregator(lola);
-  }
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
