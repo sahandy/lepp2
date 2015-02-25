@@ -202,6 +202,19 @@ void OdoCoordinateTransformer<PointT>::setNext(LolaKinematicsParams const& param
 
 template<class PointT>
 bool OdoCoordinateTransformer<PointT>::apply(PointT& original) {
+  // This checks if we have a "null" transform. This would cause all points to
+  // be mapped to (0, 0, 0) so we exclude each such point from the output all
+  // together.
+  bool all = true;
+  for (int i = 0; i < 3; ++i) {
+    all = all && (transform_params_.r_odo_cam[i] == 0);
+  }
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      all = all && (transform_params_.A_odo_cam[i][j] == 0);
+    }
+  }
+  if (all) return false;
   // world_point = r_odo_cam + (A_odo_cam * original)
   PointT world_point = original;
   world_point.x = (transform_params_.r_odo_cam[0])
