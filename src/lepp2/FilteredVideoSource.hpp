@@ -188,11 +188,15 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
 
     // Now apply point-wise filters.
     size_t const sz = point_filters_.size();
+    bool valid = true;
     for (size_t i = 0; i < sz; ++i) {
-      point_filters_[i]->apply(p);
+      if (!point_filters_[i]->apply(p)) {
+        valid = false;
+        break;
+      }
     }
     // And pass such a filtered/modified point to the cloud-level filter.
-    this->newPoint(p, filtered);
+    if (valid) this->newPoint(p, filtered);
   }
 
   // Now we obtain the fully filtered cloud...
