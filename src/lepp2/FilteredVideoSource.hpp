@@ -255,7 +255,6 @@ protected:
         all_points_.begin();
     while (it != all_points_.end()) {
       if (this_frame_.find(it->first) == this_frame_.end()) {
-        // it->second = 0.9*it->second + 0.1*0.;
         it->second.push_back(false);
       }
       unsigned char const count = std::accumulate(
