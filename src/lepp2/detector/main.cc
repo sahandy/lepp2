@@ -16,8 +16,9 @@
 
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
-#include "lepp2/lola/OdoCoordinateTransformer.hpp"
-#include "lepp2/lola/LolaAggregator.hpp"
+
+#include "lola/OdoCoordinateTransformer.hpp"
+#include "lola/LolaAggregator.hpp"
 
 #include "lepp2/filter/TruncateFilter.hpp"
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
