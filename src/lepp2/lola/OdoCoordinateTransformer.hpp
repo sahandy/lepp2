@@ -1,6 +1,9 @@
 #ifndef LEPP2_LOLA_ODO_COORDINATE_TRANSFORMER_H_
 #define LEPP2_LOLA_ODO_COORDINATE_TRANSFORMER_H_
 #include "lepp2/filter/PointFilter.hpp"
+
+#include "lola/PoseService.h"
+
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -306,6 +309,43 @@ FileOdoTransformer<PointT>::readNextParams() {
   ss >> params.stance;
   ss >> params.frame_num;
   ss >> params.stamp;
+
+  return params;
+}
+
+/**
+ * A concrete implementation of the transformer, which obtains its kinematics
+ * information from the robot. Relies on a `PoseService` instance that it can
+ * ask for the newest robot kinematics info when needed.
+ */
+template<class PointT>
+class RobotOdoTransformer : public OdoCoordinateTransformer<PointT> {
+public:
+  RobotOdoTransformer(boost::shared_ptr<PoseService> service)
+      : service_(service) {}
+protected:
+  LolaKinematicsParams getNextParams();
+private:
+  boost::shared_ptr<PoseService> service_;
+};
+
+template<class PointT>
+LolaKinematicsParams RobotOdoTransformer<PointT>::getNextParams() {
+  HR_Pose pose = service_->getCurrentPose();
+  // Now convert the current raw pose to parameters that are of relevance to the
+  // transformation.
+  LolaKinematicsParams params;
+  for (int i = 0; i < 3; ++i) {
+    params.t_wr_cl[i] = pose.t_wr_cl[i];
+    params.t_stance_odo[i] = pose.t_stance_odo[i];
+    for (int j = 0; j < 3; ++j) {
+      params.R_wr_cl[i][j] = pose.R_wr_cl[3*i + j];
+    }
+  }
+  params.phi_z_odo = pose.phi_z_odo;
+  params.stance = pose.stance;
+  params.frame_num = this->current_frame_;
+  params.stamp = pose.stamp;
 
   return params;
 }
