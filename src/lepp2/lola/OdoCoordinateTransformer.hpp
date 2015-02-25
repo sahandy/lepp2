@@ -78,16 +78,15 @@ std::ostream& operator<<(std::ostream& out, OdoTransformParameters const& param)
  * coordinate system to the LOLA world coordinate system based on the currently
  * known kinematics.
  *
- * For now, this implementation reads the kinematics data from a file.
+ * Concrete implementations of this class need to provide the kinematics info;
+ * this ABC provides a way to use the kinematics to construct the transformation
+ * and perform the transformation.
  *
- * TODO Provide a base class and a file-based implementation so as to be able to
- *      support an implementation where the kinematics are obtained by listening
- *      for messages on a UDP port.
  */
 template<class PointT>
 class OdoCoordinateTransformer : public lepp::PointFilter<PointT> {
 public:
-  OdoCoordinateTransformer(std::string const& file_name);
+  OdoCoordinateTransformer() : current_frame_(0) {}
   /**
    * `PointFilter` interface method.
    */
@@ -96,6 +95,22 @@ public:
    * `PointFilter` interface method.
    */
   bool apply(PointT& original);
+protected:
+  /**
+   * Gets the kinematics parameters that should be used for constructing the
+   * transformation for the next frame, effectively locking the transformation
+   * for all points for which the `apply` method is called until the next
+   * `getNextParams` call (which happens when the next frame is being processed).
+   *
+   * Concrete implementations need to provide the implementation of this method.
+   */
+  virtual LolaKinematicsParams getNextParams() = 0;
+
+  /**
+   * Tracks the current frame number. Exposed to concrete implementations.
+   */
+  int current_frame_;
+
 private:
   /**
    * Sets the parameters that should be used for the upcoming transformations,
@@ -103,36 +118,12 @@ private:
    * These parameters will be considered valid until the next `setNext` call.
    */
   void setNext(LolaKinematicsParams const& params);
-  /**
-   * Gets the kinematics parameters that should be used for constructing the
-   * transformation for the next frame, effectively locking the transformation
-   * for all points for which the `apply` method is called until the next
-   * `getNextParams` call (which happens when the next frame is being processed)
-   */
-  LolaKinematicsParams getNextParams();
 
-  /**
-   * The name of the file from which the kinematics data is to be read.
-   */
-  std::string const file_name_;
-  /**
-   * A handle to the file from which kinematics is being read.
-   */
-  std::ifstream fin_;
   /**
    * Parameters currently used for point transformations (i.e. by the `apply`
    * method).
    */
   OdoTransformParameters transform_params_;
-  /**
-   * The raw kinematics parameters that are currently known.
-   */
-  LolaKinematicsParams curr_params_;
-
-  /**
-   * Tracks the current frame number.
-   */
-  int current_frame_;
 };
 
 namespace {
@@ -166,63 +157,17 @@ namespace {
 }
 
 template<class PointT>
-OdoCoordinateTransformer<PointT>::OdoCoordinateTransformer(
-    std::string const& file_name)
-      : file_name_(file_name), fin_(file_name.c_str()), current_frame_(0) {}
-
-template<class PointT>
 void OdoCoordinateTransformer<PointT>::prepareNext() {
   ++current_frame_;
-  if (current_frame_ == 1) {
-    curr_params_ = this->getNextParams();
-  }
-
-  if (curr_params_.frame_num > current_frame_) {
-    this->setNext(curr_params_);
-  } else if (curr_params_.frame_num <= current_frame_) {
-    LolaKinematicsParams current_params;
-
-    while (curr_params_.frame_num <= current_frame_) {
-      current_params = curr_params_;
-      curr_params_ = this->getNextParams();
-    }
-
-    this->setNext(current_params);
-  }
-}
-
-template<class PointT>
-LolaKinematicsParams
-OdoCoordinateTransformer<PointT>::getNextParams() {
-  std::string line;
-  // Ignore the comments in the log file
-  do {
-    std::getline(fin_, line);
-  } while (line[0] == '#');
-
-  // Parse next frame's transformation parameters from the read line...
-  LolaKinematicsParams params;
-
-  std::stringstream ss(line);
-  for (size_t i = 0; i < 3; ++i) { ss >> params.t_wr_cl[i]; }
-  for (size_t i = 0; i < 3; ++i) {
-    for (size_t j = 0; j < 3; ++j) {
-      ss >> params.R_wr_cl[i][j];
-    }
-  }
-  for (size_t i = 0; i < 3; ++i) { ss >> params.t_stance_odo[i]; }
-  ss >> params.phi_z_odo;
-  ss >> params.stance;
-  ss >> params.frame_num;
-  ss >> params.stamp;
-
-  return params;
+  LolaKinematicsParams new_params = this->getNextParams();
+  this->setNext(new_params);
 }
 
 template<class PointT>
 void OdoCoordinateTransformer<PointT>::setNext(LolaKinematicsParams const& params) {
-  std::cerr << "Setting new transformation based on parameters:" << std::endl;
-  std::cerr << params << std::endl;
+  std::cerr << "Setting new transformation for frame " << current_frame_
+            << " based on parameters:" << std::endl
+            << params << std::endl;
   double rotation_matrix[3][3];
   rotationmatrix(params.phi_z_odo, rotation_matrix);
 
@@ -277,5 +222,79 @@ bool OdoCoordinateTransformer<PointT>::apply(PointT& original) {
   return true;
 }
 
+/**
+ * A concrete implementation of the transformer, which obtains its kinematics
+ * information by reading from a log file. The path to the log file is provided
+ * at construction time.
+ */
+template<class PointT>
+class FileOdoTransformer : public OdoCoordinateTransformer<PointT> {
+public:
+  FileOdoTransformer(std::string const& file_name);
+protected:
+  LolaKinematicsParams getNextParams();
+private:
+  LolaKinematicsParams readNextParams();
+
+  /**
+   * The name of the file from which the kinematics data is to be read.
+   */
+  std::string const file_name_;
+  /**
+   * A handle to the file from which kinematics is being read.
+   */
+  std::ifstream fin_;
+
+  LolaKinematicsParams current_;
+  LolaKinematicsParams next_;
+};
+
+template<class PointT>
+FileOdoTransformer<PointT>::FileOdoTransformer(
+    std::string const& file_name)
+      : file_name_(file_name), fin_(file_name.c_str()) {
+  // Initialize the current and next values
+  current_ = this->readNextParams();
+  next_ = this->readNextParams();
+}
+
+template<class PointT>
+LolaKinematicsParams FileOdoTransformer<PointT>::getNextParams() {
+  LolaKinematicsParams use = current_;
+  if (this->current_frame_ + 1 == next_.frame_num) {
+    current_ = next_;
+    next_ = this->readNextParams();
+  }
+
+  return use;
+}
+
+template<class PointT>
+LolaKinematicsParams
+FileOdoTransformer<PointT>::readNextParams() {
+  std::string line;
+  // Ignore the comments in the log file
+  do {
+    std::getline(fin_, line);
+  } while (line[0] == '#');
+
+  // Parse next frame's transformation parameters from the read line...
+  LolaKinematicsParams params;
+
+  std::stringstream ss(line);
+  for (size_t i = 0; i < 3; ++i) { ss >> params.t_wr_cl[i]; }
+  for (size_t i = 0; i < 3; ++i) {
+    for (size_t j = 0; j < 3; ++j) {
+      ss >> params.R_wr_cl[i][j];
+    }
+  }
+  for (size_t i = 0; i < 3; ++i) { ss >> params.t_stance_odo[i]; }
+  ss >> params.phi_z_odo;
+  ss >> params.stance;
+  ss >> params.frame_num;
+  ss >> params.stamp;
+
+  return params;
+}
 
 #endif

@@ -57,7 +57,7 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
   }
   {
     boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new OdoCoordinateTransformer<SimplePoint>("in.log"));
+        new FileOdoTransformer<SimplePoint>("in.log"));
     source->addFilter(filter);
   }
   {
