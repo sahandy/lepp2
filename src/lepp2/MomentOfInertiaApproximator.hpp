@@ -9,10 +9,7 @@
 #include <pcl/common/common.h>
 
 #include "lepp2/legacy/moment_of_inertia_estimation.hpp"
-#include "lepp2/legacy/Preallocator.hpp"
-#include "lepp2/legacy/models/SphereModel.hpp"
-#include "lepp2/legacy/models/CylinderModel.hpp"
-#include "lepp2/legacy/models/TriangleModel.hpp"
+#include "lepp2/models/ObjectModel.h"
 
 namespace lepp {
 
@@ -29,14 +26,9 @@ namespace lepp {
 template<class PointT>
 class MomentOfInertiaObjectApproximator : public ObjectApproximator<PointT> {
 public:
-  std::vector<boost::shared_ptr<ObjectModel> > approximate(
+  std::vector<boost::shared_ptr<lepp::ObjectModel> > approximate(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 private:
-  // Legacy preallocators
-  Preallocator<SphereModel> m_preallocator_sphere;
-  Preallocator<CylinderModel> m_preallocator_cylinder;
-  Preallocator<TriangleModel> m_preallocator_triangle;
-
   // Private helper member functions for fitting individual models.
   // Takes a pointer to a model and a descriptor and sets the parameters of the
   // model so that it describes the point cloud with the given features in the
@@ -53,7 +45,7 @@ private:
                       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
                       Eigen::Vector3f mass_center,
                       std::vector <Eigen::Vector3f> const& axes);
-  void performFitting(boost::shared_ptr<CylinderModel> cylinder,
+  void performFitting(boost::shared_ptr<CapsuleModel> capsule,
                       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
                       Eigen::Vector3f mass_center,
                       std::vector <Eigen::Vector3f> const& axes);
@@ -80,12 +72,12 @@ private:
 };
 
 template<class PointT>
-std::vector<boost::shared_ptr<ObjectModel> >
+std::vector<boost::shared_ptr<lepp::ObjectModel> >
 MomentOfInertiaObjectApproximator<PointT>::approximate(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
   typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
   typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
-  std::vector<boost::shared_ptr<ObjectModel> > ret;
+  std::vector<boost::shared_ptr<lepp::ObjectModel> > ret;
 
   std::deque<PointCloudConstPtr> queue;
   queue.push_back(point_cloud);
@@ -116,7 +108,7 @@ MomentOfInertiaObjectApproximator<PointT>::approximate(
 }
 
 template<class PointT>
-boost::shared_ptr<ObjectModel>
+boost::shared_ptr<lepp::ObjectModel>
 MomentOfInertiaObjectApproximator<PointT>::getSingleApproximation(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
 
@@ -151,17 +143,16 @@ MomentOfInertiaObjectApproximator<PointT>::getSingleApproximation(
   //       descriptors)
   boost::shared_ptr<ObjectModel> model;
   if ((middle_value / major_value > .6) && (minor_value / major_value > .1)) {
-    boost::shared_ptr<SphereModel> sphere = m_preallocator_sphere.newInstance();
+    boost::shared_ptr<SphereModel> sphere(new SphereModel(0, Coordinate()));
     performFitting(sphere, point_cloud, mass_center, axes);
     model = sphere;
   } else if (middle_value / major_value < .25) {
-    boost::shared_ptr<CylinderModel> cylinder =
-        m_preallocator_cylinder.newInstance();
-    performFitting(cylinder, point_cloud, mass_center, axes);
-    model = cylinder;
+    boost::shared_ptr<CapsuleModel> capsule(new CapsuleModel(0, Coordinate(), Coordinate()));
+    performFitting(capsule, point_cloud, mass_center, axes);
+    model = capsule;
   } else {
     // The fall-back is a sphere
-    boost::shared_ptr<SphereModel> sphere = m_preallocator_sphere.newInstance();
+    boost::shared_ptr<SphereModel> sphere(new SphereModel(0, Coordinate()));
     performFitting(sphere, point_cloud, mass_center, axes);
     model = sphere;
   }
@@ -262,30 +253,14 @@ void MomentOfInertiaObjectApproximator<PointT>::performFitting(
   radius_vector(2) = center(2) - max_point(2);
   radius = sqrt(radius_vector(0)*radius_vector(0)+radius_vector(1)*radius_vector(1)+radius_vector(2)*radius_vector(2));
 
-  // save results format r, x_notrans, y_notrans, z_notrans, x_trans, y_trans, z_trans
-  // save results in cam sys
-  coeffs.resize(7);
-  coeffs[0] = radius;
-  coeffs[1] = center(0);
-  coeffs[2] = center(1);
-  coeffs[3] = center(2);
-
-  //Transform to OdoCoordinateSystem
-  // result = TransformPointToOdo(center);
-  // This transformation should not be happening here anyway!
-
-  // save results in odo sys
-  coeffs[4] = 0.;
-  coeffs[5] = 0.;
-  coeffs[6] = 0.;
-
   // Finally sets the calculated coeffs
-  sphere->setModelCoefficients(coeffs);
+  sphere->set_radius(radius);
+  sphere->set_center(Coordinate(center(0), center(1), center(2)));
 }
 
 template<class PointT>
 void MomentOfInertiaObjectApproximator<PointT>::performFitting(
-    boost::shared_ptr<CylinderModel> cylinder,
+    boost::shared_ptr<CapsuleModel> capsule,
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
     Eigen::Vector3f mass_center,
     std::vector <Eigen::Vector3f> const& axes) {
@@ -417,7 +392,9 @@ void MomentOfInertiaObjectApproximator<PointT>::performFitting(
   // save radius
   coeffs[0] = 0.9*radius;
 
-  cylinder->setModelCoefficients(coeffs);
+  capsule->set_radius(.9 * radius);
+  capsule->set_first(Coordinate(coeffs[1], coeffs[2], coeffs[3]));
+  capsule->set_second(Coordinate(coeffs[4], coeffs[5], coeffs[6]));
 }
 
 } // namespace lepp

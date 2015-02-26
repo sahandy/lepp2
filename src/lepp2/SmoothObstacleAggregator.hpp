@@ -34,7 +34,7 @@ public:
    * The member function that all concrete aggregators need to implement in
    * order to be able to process newly detected obstacles.
    */
-  virtual void updateObstacles(ObjectModelPtrListPtr obstacles);
+  virtual void updateObstacles(std::vector<ObjectModelPtr> const& obstacles);
 private:
   // Private types
   /**
@@ -55,7 +55,7 @@ private:
    * list.
    */
   std::map<model_id_t, size_t> matchToPrevious(
-      ObjectModelPtrList const& new_obstacles);
+      std::vector<ObjectModelPtr> const& new_obstacles);
   /**
    * Updates the internal `frames_found_` and `frames_lost_` counters for each
    * mode, based on the given new matches description, i.e. increments the
@@ -84,7 +84,7 @@ private:
    * Convenience function that copies the list of materialized objects to a list
    * that can then be given to the underlying aggregator.
    */
-  ObjectModelPtrListPtr copyMaterialized();
+   std::vector<ObjectModelPtr> copyMaterialized();
   /**
    * The function returns the next available model ID. It makes sure that no
    * models are ever assigned the same ID.
@@ -154,14 +154,14 @@ SmoothObstacleAggregator::model_id_t SmoothObstacleAggregator::nextModelId() {
 
 SmoothObstacleAggregator::model_id_t
 SmoothObstacleAggregator::getMatchByDistance(ObjectModelPtr model) {
-  pcl::PointXYZ const& query_point = model->getP1_notrans();
+  Coordinate const query_point = model->center_point();
   bool found = false;
   double min_dist = 1e10;
   model_id_t match = 0;
   for (std::map<model_id_t, ObjectModelPtr>::const_iterator it = tracked_models_.begin();
         it != tracked_models_.end();
         ++it) {
-    pcl::PointXYZ const& p(it->second->getP1_notrans());
+    Coordinate const p(it->second->center_point());
     double const dist =
         (p.x - query_point.x) * (p.x - query_point.x) +
         (p.y - query_point.y) * (p.y - query_point.y) +
@@ -188,7 +188,7 @@ SmoothObstacleAggregator::getMatchByDistance(ObjectModelPtr model) {
 
 std::map<SmoothObstacleAggregator::model_id_t, size_t>
 SmoothObstacleAggregator::matchToPrevious(
-    ObjectModelPtrList const& new_obstacles) {
+    std::vector<ObjectModelPtr> const& new_obstacles) {
   // Maps the ID of the model to its index in the new list of obstacles.
   // This lets us know the new approximation of each currently tracked object.
   // If the model ID is not in the `tracked_models_`, it means we've got a new
@@ -205,7 +205,7 @@ SmoothObstacleAggregator::matchToPrevious(
   // being tracked or give it a brand new model ID, if we are unable to find a
   // match.
   for (size_t i = 0; i < new_obstacles.size(); ++i) {
-    std::cout << "Matching " << i << " (" << new_obstacles[i]->getType() << ")" << std::endl;
+    std::cout << "Matching " << i << " (" << *new_obstacles[i] << ")" << std::endl;
     model_id_t const model_id = getMatchByDistance(new_obstacles[i]);
     std::cout << "Matched " << i << " --> " << model_id << std::endl;
     correspondence[model_id] = i;
@@ -312,22 +312,23 @@ void SmoothObstacleAggregator::materializeFoundObjects() {
 
 }
 
-ObjectModelPtrListPtr SmoothObstacleAggregator::copyMaterialized() {
-  ObjectModelPtrListPtr smooth_obstacles(new ObjectModelPtrList(
-      materialized_models_.begin(), materialized_models_.end()));
+std::vector<ObjectModelPtr> SmoothObstacleAggregator::copyMaterialized() {
+  std::vector<ObjectModelPtr> smooth_obstacles(
+      materialized_models_.begin(), materialized_models_.end());
   return smooth_obstacles;
 }
 
-void SmoothObstacleAggregator::updateObstacles(ObjectModelPtrListPtr obstacles) {
-  std::cout << "#new = " << obstacles->size() << std::endl;
+void SmoothObstacleAggregator::updateObstacles(
+    std::vector<ObjectModelPtr> const& obstacles) {
+  std::cout << "#new = " << obstacles.size() << std::endl;
 
-  std::map<model_id_t, size_t> correspondence = matchToPrevious(*obstacles);
+  std::map<model_id_t, size_t> correspondence = matchToPrevious(obstacles);
   updateLostAndFound(correspondence);
   dropLostObjects();
   materializeFoundObjects();
-  ObjectModelPtrListPtr smooth_obstacles(copyMaterialized());
+  std::vector<ObjectModelPtr> smooth_obstacles(copyMaterialized());
 
-  std::cout << "Real in this frame = " << smooth_obstacles->size() << std::endl;
+  std::cout << "Real in this frame = " << smooth_obstacles.size() << std::endl;
   aggregator_.updateObstacles(smooth_obstacles);
 }
 

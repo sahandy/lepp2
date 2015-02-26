@@ -20,6 +20,8 @@
 #include "lepp2/filter/TruncateFilter.hpp"
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
+#include "lepp2/models/ObjectModel.h"
+
 using namespace lepp;
 
 /**

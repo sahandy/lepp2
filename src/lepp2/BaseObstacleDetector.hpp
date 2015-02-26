@@ -55,7 +55,7 @@ protected:
   /**
    * Notifies any observers about newly detected obstacles.
    */
-  void notifyObstacles(ObjectModelPtrListPtr models);
+  void notifyObstacles(std::vector<ObjectModelPtr> const& models);
 
 private:
   typename pcl::PointCloud<PointT>::ConstPtr cloud_;
@@ -101,7 +101,7 @@ void BaseObstacleDetector<PointT>::update() {
 
   // Iteratively approximate the segments
   size_t segment_count = segments.size();
-  ObjectModelPtrListPtr models(new ObjectModelPtrList);
+  std::vector<ObjectModelPtr> models;
   for (size_t i = 0; i < segment_count; ++i) {
     std::vector<ObjectModelPtr> approximations =
       approximator_->approximate(segments[i]);
@@ -109,7 +109,7 @@ void BaseObstacleDetector<PointT>::update() {
     // For now the fact that multiple approximations were a part of one group
     // is ignored to keep compatibility with the old iterfaces.
     std::copy(approximations.begin(), approximations.end(),
-              std::back_inserter(*models));
+              std::back_inserter(models));
   }
   t.stop();
   std::cerr << "Obstacle detection took " << t.duration() << std::endl;
@@ -125,7 +125,7 @@ void BaseObstacleDetector<PointT>::attachObstacleAggregator(
 
 template<class PointT>
 void BaseObstacleDetector<PointT>::notifyObstacles(
-    ObjectModelPtrListPtr models) {
+  std::vector<ObjectModelPtr> const& models) {
   size_t sz = aggregators.size();
   for (size_t i = 0; i < sz; ++i) {
     aggregators[i]->updateObstacles(models);

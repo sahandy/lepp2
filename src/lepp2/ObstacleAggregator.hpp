@@ -1,7 +1,7 @@
 #ifndef LEPP2_OBSTACLE_AGGREGATOR_H__
 #define LEPP2_OBSTACLE_AGGREGATOR_H__
 
-#include "lepp2/legacy/models/ObjectModel.hpp"
+#include "lepp2/models/ObjectModel.h"
 
 namespace lepp
 {
@@ -19,7 +19,7 @@ public:
    * The member function that all concrete aggregators need to implement in
    * order to be able to process newly detected obstacles.
    */
-  virtual void updateObstacles(ObjectModelPtrListPtr obstacles) = 0;
+  virtual void updateObstacles(std::vector<ObjectModelPtr> const& obstacles) = 0;
 };
 
 } // namespace lepp

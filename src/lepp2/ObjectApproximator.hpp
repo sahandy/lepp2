@@ -3,13 +3,12 @@
 
 #include <pcl/common/projection_matrix.h>
 
-/**
- * Forward declaration of the ObjectModel class that represents an
- * approximation.
- */
-class ObjectModel;
-
 namespace lepp {
+  /**
+   * Forward declaration of the ObjectModel class that represents an
+   * approximation.
+   */
+  class ObjectModel;
 
 /**
  * An abstract base class that classes that wish to generate approximations
@@ -24,7 +23,7 @@ public:
    * object and tries to find the best approximations for this object, using its
    * own specific approximation method.
    */
-  virtual std::vector<boost::shared_ptr<ObjectModel> > approximate(
+  virtual std::vector<boost::shared_ptr<lepp::ObjectModel> > approximate(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
 };
 

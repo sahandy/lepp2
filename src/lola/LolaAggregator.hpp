@@ -18,6 +18,41 @@ namespace {
       std::size_t bytes_transferred) {}
 }
 
+using namespace lepp;
+
+class ParametersVisitor : public lepp::ModelVisitor {
+public:
+  void visitSphere(SphereModel& sphere) {
+    params_.push_back(0); // type
+    params_.push_back(sphere.radius());
+    Coordinate const center = sphere.center();
+    params_.push_back(center.x);
+    params_.push_back(center.y);
+    params_.push_back(center.z);
+    // Now the rest is padding
+    for (size_t i = 0; i < 6; ++i) params_.push_back(0);
+  }
+
+  void visitCapsule(CapsuleModel& capsule) {
+    params_.push_back(1); // type
+    params_.push_back(capsule.radius());
+    Coordinate const first = capsule.first();
+    params_.push_back(first.x);
+    params_.push_back(first.y);
+    params_.push_back(first.z);
+    Coordinate const second = capsule.second();
+    params_.push_back(second.x);
+    params_.push_back(second.y);
+    params_.push_back(second.z);
+    // The rest is padding
+    for (size_t i = 0; i < 3; ++i) params_.push_back(0);
+  }
+
+  std::vector<double> params() const { return params_; }
+private:
+  std::vector<double> params_;
+};
+
 /**
  * A LOLA-specific implementation of an `ObstacleAggregator`.
  *
@@ -43,13 +78,13 @@ public:
   /**
    * `ObstacleAggregator` interface implementation.
    */
-  void updateObstacles(ObjectModelPtrListPtr obstacles);
+  void updateObstacles(std::vector<ObjectModelPtr> const& obstacles);
 private:
   /**
    * A helper function that builds the datagram payload based on the given
    * obstacles.
    */
-  std::vector<char> buildPayload(ObjectModelPtrList& obstacles) const;
+  std::vector<char> buildPayload(std::vector<ObjectModelPtr> const& obstacles) const;
 
   boost::asio::io_service io_service_;
   boost::asio::ip::udp::socket socket_;
@@ -69,11 +104,11 @@ LolaAggregator::~LolaAggregator() {
   socket_.close();
 }
 
-void LolaAggregator::updateObstacles(ObjectModelPtrListPtr obstacles) {
+void LolaAggregator::updateObstacles(std::vector<ObjectModelPtr> const& obstacles) {
   std::cerr << "Sending to " << remote_endpoint_ << std::endl;
 
   // Builds the payload: a raw byte buffer.
-  std::vector<char> payload(buildPayload(*obstacles));
+  std::vector<char> payload(buildPayload(obstacles));
   // Once the payload is built, initiate an async send.
   // We don't really care about the result, since there's no point in retrying.
   socket_.async_send_to(
@@ -84,36 +119,40 @@ void LolaAggregator::updateObstacles(ObjectModelPtrListPtr obstacles) {
 }
 
 std::vector<char> LolaAggregator::buildPayload(
-    ObjectModelPtrList& obstacles) const {
-  size_t sz = obstacles.size();
-  // 11 integers (each int is 4 bytes) per obstacle
-  std::vector<char> payload(11 * 4 * sz);
-  size_t idx = 0;
+    std::vector<ObjectModelPtr> const& obstacles) const {
+  std::vector<char> payload;
+
+  size_t const sz = obstacles.size();
   for (int i = 0; i < sz; ++i) {
     ObjectModel& model = *obstacles[i];
-    // Extracts the model representation into a convenience struct.
-    struct {
-      int type;
-      int radius;
-      int rest[9];
-    } obstacle;
-    memset(&obstacle, 0, sizeof(obstacle));
-    obstacle.type = model.getType_nr();
-    // LOLA expects the values to be in milimeters.
-    obstacle.radius = model.getRadius() * 1000;
-    obstacle.rest[3*0 + 0] = model.getP1_notrans().x * 1000;
-    obstacle.rest[3*0 + 1] = model.getP1_notrans().y * 1000;
-    obstacle.rest[3*0 + 2] = model.getP1_notrans().z * 1000;
-    obstacle.rest[3*1 + 0] = model.getP2_notrans().x * 1000;
-    obstacle.rest[3*1 + 1] = model.getP2_notrans().y * 1000;
-    obstacle.rest[3*1 + 2] = model.getP2_notrans().z * 1000;
-    obstacle.rest[3*2 + 0] = model.getP3_notrans().x * 1000;
-    obstacle.rest[3*2 + 1] = model.getP3_notrans().y * 1000;
-    obstacle.rest[3*2 + 2] = model.getP3_notrans().z * 1000;
-    // Now dump the raw bytes extracted from the struct into the payload.
-    char* raw = (char*)&obstacle;
-    for (int i = 0; i < sizeof(obstacle); ++i) {
-      payload[idx++] = raw[i];
+    // Get the "flattened" model representation.
+    ParametersVisitor parameterizer;
+    model.accept(parameterizer);
+    std::vector<double> params(parameterizer.params());
+
+    // Since the model could have been a composite, we may have more than 1
+    // model's representation in the vector, one after the other.
+    for (size_t model_idx = 0; model_idx < params.size() / 11; ++model_idx) {
+      // Pack each set of coefficients into a struct that should be shipped off
+      // to the viewer.
+      struct {
+        int type;
+        int radius;
+        int rest[9];
+      } obstacle;
+      memset(&obstacle, 0, sizeof(obstacle));
+      obstacle.type = params[11*model_idx + 0];
+      // LOLA expects the values to be in milimeters.
+      obstacle.radius = params[11*model_idx + 1] * 1000;
+      for (size_t i = 0; i < 9; ++i) {
+        obstacle.rest[i] = params[11*model_idx + 2 + i] * 1000;
+      }
+
+      // Now dump the raw bytes extracted from the struct into the payload.
+      char* raw = (char*)&obstacle;
+      for (size_t i = 0; i < sizeof(obstacle); ++i) {
+        payload.push_back(raw[i]);
+      }
     }
   }
 
