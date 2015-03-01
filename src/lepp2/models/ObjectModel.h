@@ -45,6 +45,7 @@ inline std::ostream& operator<<(std::ostream& out, Coordinate const& coord) {
 
 // Forward declarations.
 class ModelVisitor;
+class SphereModel;
 
 /**
  * The base class for all geometrical models that can be used to represent
@@ -63,8 +64,44 @@ typedef boost::shared_ptr<ObjectModel> ObjectModelPtr;
 
 class ModelVisitor {
 public:
+  virtual void visitSphere(SphereModel& sphere) = 0;
   virtual ~ModelVisitor() {}
 };
+
+/**
+ * Model class representing a sphere.
+ */
+class SphereModel : public ObjectModel {
+public:
+  SphereModel(double radius, Coordinate const& center);
+  /**
+   * Returns a model-specific representation of its coefficients packed into
+   * an std::vector.
+   */
+  void accept(ModelVisitor& visitor) { visitor.visitSphere(*this); }
+  Coordinate center_point() const { return center_; }
+
+  double radius() const { return radius_; }
+  Coordinate const& center() const { return center_; }
+  void set_radius(double radius) { radius_ = radius; }
+  void set_center(Coordinate const& center) { center_ = center; }
+
+  friend std::ostream& operator<<(std::ostream& out, SphereModel const& sphere);
+private:
+  double radius_;
+  Coordinate center_;
+};
+
+inline SphereModel::SphereModel(double radius, Coordinate const& center)
+    : radius_(radius), center_(center) {}
+
+inline std::ostream& operator<<(std::ostream& out, SphereModel const& sphere) {
+  out << "[sphere; "
+      << "radius = " << sphere.radius_ << "; "
+      << "center = " << sphere.center_ << "]";
+
+  return out;
+}
 
 }  // namespace lepp
 #endif
