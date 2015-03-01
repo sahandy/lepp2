@@ -55,10 +55,11 @@ class CapsuleModel;
 class ObjectModel {
 public:
   virtual void accept(ModelVisitor& visitor) = 0;
-
   virtual Coordinate center_point() const = 0;
 
   virtual ~ObjectModel() {}
+
+  friend std::ostream& operator<<(std::ostream& out, ObjectModel const& model);
 };
 
 typedef boost::shared_ptr<ObjectModel> ObjectModelPtr;
@@ -205,6 +206,33 @@ private:
    */
   std::vector<boost::shared_ptr<ObjectModel> > models_;
 };
+
+/**
+ * A visitor implementation that outputs a textual representation of each model
+ * instance to a given `std::ostream`.
+ *
+ * It requires that each `ObjectModel` implementation implements the
+ * `operator<<` for an `std::ostream`.
+ */
+class PrintVisitor : public ModelVisitor {
+public:
+  /**
+   * Create a new `PrintVisitor` that will output in the given `std::ostream`.
+   */
+  PrintVisitor(std::ostream& out) : out_(out) {}
+
+  void visitSphere(SphereModel& sphere) { out_ << sphere; }
+  void visitCapsule(CapsuleModel& capsule) { out_ << capsule; }
+private:
+  std::ostream& out_;
+};
+
+inline std::ostream& operator<<(std::ostream& out, ObjectModel const& model) {
+  PrintVisitor printer(out);
+  const_cast<ObjectModel&>(model).accept(printer);
+
+  return out;
+}
 
 }  // namespace lepp
 #endif
