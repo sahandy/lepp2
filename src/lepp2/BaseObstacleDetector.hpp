@@ -89,7 +89,11 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
     int id,
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
   cloud_ = point_cloud;
-  update();
+  try {
+    update();
+  } catch (...) {
+    std::cerr << "ObstacleDetector: Obstacle detection failed ..." << std::endl;
+  }
 }
 
 
