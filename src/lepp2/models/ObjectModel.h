@@ -43,18 +43,28 @@ inline std::ostream& operator<<(std::ostream& out, Coordinate const& coord) {
   return out;
 }
 
+// Forward declarations.
+class ModelVisitor;
+
 /**
  * The base class for all geometrical models that can be used to represent
  * objects.
  */
 class ObjectModel {
 public:
+  virtual void accept(ModelVisitor& visitor) = 0;
+
   virtual Coordinate center_point() const = 0;
 
   virtual ~ObjectModel() {}
 };
 
 typedef boost::shared_ptr<ObjectModel> ObjectModelPtr;
+
+class ModelVisitor {
+public:
+  virtual ~ModelVisitor() {}
+};
 
 }  // namespace lepp
 #endif
