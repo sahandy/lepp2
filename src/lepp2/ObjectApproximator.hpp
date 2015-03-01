@@ -5,10 +5,10 @@
 
 namespace lepp {
   /**
-   * Forward declaration of the ObjectModel class that represents an
+   * Forward declaration of the CompositeModel class that represents an
    * approximation.
    */
-  class ObjectModel;
+  class CompositeModel;
 
 /**
  * An abstract base class that classes that wish to generate approximations
@@ -23,7 +23,7 @@ public:
    * object and tries to find the best approximations for this object, using its
    * own specific approximation method.
    */
-  virtual std::vector<boost::shared_ptr<lepp::ObjectModel> > approximate(
+  virtual boost::shared_ptr<CompositeModel> approximate(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
 };
 

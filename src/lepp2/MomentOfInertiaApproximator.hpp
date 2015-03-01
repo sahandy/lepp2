@@ -26,7 +26,7 @@ namespace lepp {
 template<class PointT>
 class MomentOfInertiaObjectApproximator : public ObjectApproximator<PointT> {
 public:
-  std::vector<boost::shared_ptr<lepp::ObjectModel> > approximate(
+  boost::shared_ptr<CompositeModel> approximate(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 private:
   // Private helper member functions for fitting individual models.
@@ -72,13 +72,13 @@ private:
 };
 
 template<class PointT>
-std::vector<boost::shared_ptr<lepp::ObjectModel> >
+boost::shared_ptr<CompositeModel>
 MomentOfInertiaObjectApproximator<PointT>::approximate(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+  boost::shared_ptr<CompositeModel> approx(new CompositeModel);
+
   typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
   typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
-  std::vector<boost::shared_ptr<lepp::ObjectModel> > ret;
-
   std::deque<PointCloudConstPtr> queue;
   queue.push_back(point_cloud);
 
@@ -99,12 +99,12 @@ MomentOfInertiaObjectApproximator<PointT>::approximate(
       queue.push_back(second);
     } else {
       // Keep the approximation
-      ret.push_back(model);
+      approx->addModel(model);
     }
     ++iteration;
   }
 
-  return ret;
+  return approx;
 }
 
 template<class PointT>

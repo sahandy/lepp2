@@ -107,13 +107,7 @@ void BaseObstacleDetector<PointT>::update() {
   size_t segment_count = segments.size();
   std::vector<ObjectModelPtr> models;
   for (size_t i = 0; i < segment_count; ++i) {
-    std::vector<ObjectModelPtr> approximations =
-      approximator_->approximate(segments[i]);
-    // Add all approximations to the final return value.
-    // For now the fact that multiple approximations were a part of one group
-    // is ignored to keep compatibility with the old iterfaces.
-    std::copy(approximations.begin(), approximations.end(),
-              std::back_inserter(models));
+    models.push_back(approximator_->approximate(segments[i]));
   }
   t.stop();
   std::cerr << "Obstacle detection took " << t.duration() << std::endl;
