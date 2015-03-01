@@ -145,5 +145,66 @@ inline std::ostream& operator<<(std::ostream& out, CapsuleModel const& capsule) 
   return out;
 }
 
+/**
+ * A model implementation that can be composed of multiple basic models.
+ */
+class CompositeModel : public ObjectModel {
+public:
+  CompositeModel() {}
+  explicit CompositeModel(std::vector<boost::shared_ptr<ObjectModel> > const& models)
+      : models_(models) {}
+
+  /**
+   * Adds a new model to the composition. The model instance, which the given
+   * pointer references, is not copied, but the composite will also contain a
+   * pointer to the given element.
+   */
+  void addModel(boost::shared_ptr<ObjectModel> model) {
+    models_.push_back(model);
+  }
+
+  /**
+   * Add any model instance to the composite.
+   * The given instance is copied (by invoking the copy constructor) before
+   * storing in the composite.
+   */
+  template<class M>
+  void addModel(M const& model) {
+    models_.push_back(boost::shared_ptr<M>(new M(model)));
+  }
+
+  void set_models(std::vector<boost::shared_ptr<ObjectModel> > const& models) { models_ = models; }
+  std::vector<boost::shared_ptr<ObjectModel> > const& models() { return models_; }
+
+  void accept(ModelVisitor& visitor) {
+    // We visit each individual part of the composite.
+    size_t const sz = models_.size();
+    for (size_t i = 0; i < sz; ++i) {
+      models_[i]->accept(visitor);
+    }
+  }
+
+  Coordinate center_point() const {
+    // For now, no complex calculation to find the center of the entire
+    // composition is made; rather, the center point of the first model is
+    // returned.
+    Coordinate center(0, 0, 0);
+    if (models_.size() == 0) return center;
+
+    for (size_t i = 0; i < models_.size(); ++i) {
+      center = center + models_[i]->center_point();
+    }
+    center = center / models_.size();
+
+    return center;
+  }
+
+private:
+  /**
+   * A list of all models that the composite is composed of.
+   */
+  std::vector<boost::shared_ptr<ObjectModel> > models_;
+};
+
 }  // namespace lepp
 #endif
