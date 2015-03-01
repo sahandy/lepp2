@@ -46,6 +46,7 @@ inline std::ostream& operator<<(std::ostream& out, Coordinate const& coord) {
 // Forward declarations.
 class ModelVisitor;
 class SphereModel;
+class CapsuleModel;
 
 /**
  * The base class for all geometrical models that can be used to represent
@@ -65,6 +66,7 @@ typedef boost::shared_ptr<ObjectModel> ObjectModelPtr;
 class ModelVisitor {
 public:
   virtual void visitSphere(SphereModel& sphere) = 0;
+  virtual void visitCapsule(CapsuleModel& capsule) = 0;
   virtual ~ModelVisitor() {}
 };
 
@@ -99,6 +101,46 @@ inline std::ostream& operator<<(std::ostream& out, SphereModel const& sphere) {
   out << "[sphere; "
       << "radius = " << sphere.radius_ << "; "
       << "center = " << sphere.center_ << "]";
+
+  return out;
+}
+
+/**
+ * Model class that represents a capsule: a cylinder with two spheres at either
+ * end of it.
+ */
+class CapsuleModel : public ObjectModel {
+public:
+  /**
+   * Creates a new capsule with the given radius and two points representing the
+   * centers of the two spheres at the ends of the capsule.
+   */
+  CapsuleModel(double radius, Coordinate const& first, Coordinate const& second)
+      : radius_(radius), first_(first), second_(second) {}
+
+  void accept(ModelVisitor& visitor) { visitor.visitCapsule(*this); }
+  Coordinate center_point() const { return (second_ + first_) / 2; }
+
+  double radius() const { return radius_; }
+  Coordinate const& first() const { return first_; }
+  Coordinate const& second() const { return second_; }
+
+  void set_radius(double radius) { radius_ = radius; }
+  void set_first(Coordinate const& first) { first_ = first; }
+  void set_second(Coordinate const& second) { second_ = second; }
+
+  friend std::ostream& operator<<(std::ostream& out, CapsuleModel const& caps);
+private:
+  double radius_;
+  Coordinate first_;
+  Coordinate second_;
+};
+
+inline std::ostream& operator<<(std::ostream& out, CapsuleModel const& capsule) {
+  out << "[capsule; "
+      << "radius = " << capsule.radius_ << "; "
+      << "first = " << capsule.first_ << "; "
+      << "second = " << capsule.second_ << "]";
 
   return out;
 }
