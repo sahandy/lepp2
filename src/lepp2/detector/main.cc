@@ -120,12 +120,11 @@ int main(int argc, char* argv[]) {
   // Attaching the visualizer to the source: allow it to display the original
   // point cloud.
   source->attachObserver(visualizer);
-  // boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
-      // new SmoothObstacleAggregator(*visualizer));
-  // detector->attachObstacleAggregator(smooth_decorator);
-  // Attaching the visualizer to the detector: allow it to display the obstacle
-  // approximations.
-  detector->attachObstacleAggregator(visualizer);
+  // The visualizer is additionally decorated by the "smoothener" to smooth out
+  // the output...
+  boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
+      new SmoothObstacleAggregator(*visualizer));
+  detector->attachObstacleAggregator(smooth_decorator);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
