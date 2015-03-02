@@ -46,14 +46,14 @@ private:
    * Returns a vector where each element represents the pcl::PointIndices
    * instance representing the corresponding cluster.
    */
-  std::vector<pcl::PointIndices> getClusters(
+  std::vector<pcl::PointIndices>&& getClusters(
       PointCloudPtr const& cloud_filtered);
   /**
    * Convert the clusters represented by the given indices to point clouds,
    * by copying the corresponding points from the cloud to the corresponding
    * new point cloud.
    */
-  std::vector<CloudConstPtr> clustersToPointClouds(
+  std::vector<CloudConstPtr>&& clustersToPointClouds(
       CloudConstPtr const& cloud_filtered,
       std::vector<pcl::PointIndices> const& cluster_indices);
 
@@ -149,7 +149,7 @@ void EuclideanPlaneSegmenter<PointT>::removePlanes(
 }
 
 template<class PointT>
-std::vector<pcl::PointIndices> EuclideanPlaneSegmenter<PointT>::getClusters(
+std::vector<pcl::PointIndices>&& EuclideanPlaneSegmenter<PointT>::getClusters(
     PointCloudPtr const& cloud_filtered) {
   // Extract the clusters from such a filtered cloud.
   kd_tree_->setInputCloud(cloud_filtered);
@@ -158,11 +158,11 @@ std::vector<pcl::PointIndices> EuclideanPlaneSegmenter<PointT>::getClusters(
   std::vector<pcl::PointIndices> cluster_indices;
   clusterizer_.extract(cluster_indices);
 
-  return cluster_indices;
+  return std::move(cluster_indices);
 }
 
 template<class PointT>
-std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
+std::vector<typename pcl::PointCloud<PointT>::ConstPtr>&&
 EuclideanPlaneSegmenter<PointT>::clustersToPointClouds(
     CloudConstPtr const& cloud_filtered,
     std::vector<pcl::PointIndices> const& cluster_indices) {
@@ -180,16 +180,16 @@ EuclideanPlaneSegmenter<PointT>::clustersToPointClouds(
     ret.push_back(current);
   }
 
-  return ret;
+  return std::move(ret);
 }
 
 template<class PointT>
 std::vector<typename pcl::PointCloud<PointT>::ConstPtr>
 EuclideanPlaneSegmenter<PointT>::segment(
     const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
-  PointCloudPtr cloud_filtered = preprocessCloud(cloud);
+  auto cloud_filtered = preprocessCloud(cloud);
   removePlanes(cloud_filtered);
-  std::vector<pcl::PointIndices> cluster_indices = getClusters(cloud_filtered);
+  auto cluster_indices = getClusters(cloud_filtered);
   return clustersToPointClouds(cloud_filtered, cluster_indices);
 }
 

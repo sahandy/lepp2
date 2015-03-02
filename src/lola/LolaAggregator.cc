@@ -73,7 +73,7 @@ void LolaAggregator::updateObstacles(std::vector<ObjectModelPtr> const& obstacle
   std::cerr << "Sending to " << remote_endpoint_ << std::endl;
 
   // Builds the payload: a raw byte buffer.
-  std::vector<char> payload(buildPayload(obstacles));
+  auto payload(buildPayload(obstacles));
   // Once the payload is built, initiate an async send.
   // We don't really care about the result, since there's no point in retrying.
   socket_.async_send_to(
@@ -83,7 +83,7 @@ void LolaAggregator::updateObstacles(std::vector<ObjectModelPtr> const& obstacle
       handler);
 }
 
-std::vector<char> LolaAggregator::buildPayload(
+std::vector<char>&& LolaAggregator::buildPayload(
     std::vector<ObjectModelPtr> const& obstacles) const {
   std::vector<char> payload;
 
@@ -119,7 +119,7 @@ std::vector<char> LolaAggregator::buildPayload(
     }
   }
 
-  return payload;
+  return std::move(payload);
 }
 
 namespace {

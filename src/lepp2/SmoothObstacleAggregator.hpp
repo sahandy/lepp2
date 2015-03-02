@@ -87,7 +87,7 @@ private:
    * `tracked_models_`) to the index of this obstacle in the `new_obstacles`
    * list.
    */
-  std::map<model_id_t, size_t> matchToPrevious(
+  std::map<model_id_t, size_t>&& matchToPrevious(
       std::vector<ObjectModelPtr> const& new_obstacles);
   /**
    * Adapts the currently tracked objects by taking into account their new
@@ -124,7 +124,7 @@ private:
    * Convenience function that copies the list of materialized objects to a list
    * that can then be given to the underlying aggregator.
    */
-   std::vector<ObjectModelPtr> copyMaterialized();
+   std::vector<ObjectModelPtr>&& copyMaterialized();
   /**
    * The function returns the next available model ID. It makes sure that no
    * models are ever assigned the same ID.
@@ -233,7 +233,7 @@ SmoothObstacleAggregator::getMatchByDistance(ObjectModelPtr model) {
   }
 }
 
-std::map<SmoothObstacleAggregator::model_id_t, size_t>
+std::map<SmoothObstacleAggregator::model_id_t, size_t>&&
 SmoothObstacleAggregator::matchToPrevious(
     std::vector<ObjectModelPtr> const& new_obstacles) {
   // Maps the ID of the model to its index in the new list of obstacles.
@@ -277,7 +277,7 @@ SmoothObstacleAggregator::matchToPrevious(
     new_obstacles[corresp]->set_id(model_id);
   }
 
-  return correspondence;
+  return std::move(correspondence);
 }
 
 void SmoothObstacleAggregator::adaptTracked(
@@ -382,10 +382,10 @@ void SmoothObstacleAggregator::materializeFoundObjects() {
 
 }
 
-std::vector<ObjectModelPtr> SmoothObstacleAggregator::copyMaterialized() {
+std::vector<ObjectModelPtr>&& SmoothObstacleAggregator::copyMaterialized() {
   std::vector<ObjectModelPtr> smooth_obstacles(
       materialized_models_.begin(), materialized_models_.end());
-  return smooth_obstacles;
+  return std::move(smooth_obstacles);
 }
 
 void SmoothObstacleAggregator::notifyAggregators(

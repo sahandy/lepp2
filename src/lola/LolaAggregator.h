@@ -43,7 +43,7 @@ private:
    * A helper function that builds the datagram payload based on the given
    * obstacles.
    */
-  std::vector<char> buildPayload(std::vector<ObjectModelPtr> const& obstacles) const;
+  std::vector<char>&& buildPayload(std::vector<ObjectModelPtr> const& obstacles) const;
 
   boost::asio::io_service io_service_;
   boost::asio::ip::udp::socket socket_;
