@@ -237,8 +237,8 @@ void MomentOfInertiaObjectApproximator<PointT>::performFitting(
   std::vector <float> nearestPointSquaredDistance(1);
   float max_dist;
   Eigen::Vector3f      max_distance_vector;
-  pcl::PointXYZ       searchPoint;
-  pcl::KdTreeFLANN<pcl::PointXYZ>   kdtree;
+  PointT       searchPoint;
+  pcl::KdTreeFLANN<PointT>   kdtree;
 
   Eigen::Vector3f  radius_vector;
 
@@ -277,12 +277,12 @@ void MomentOfInertiaObjectApproximator<PointT>::performFitting(
   std::vector <float> nearestPointSquaredDistance(1);
   float max_dist;
   Eigen::Vector3f      max_distance_vector;
-  pcl::PointXYZ       searchPoint;
-  pcl::KdTreeFLANN<pcl::PointXYZ>   kdtree;
+  PointT       searchPoint;
+  pcl::KdTreeFLANN<PointT>   kdtree;
 
   float     dist_y;
   float     dist_z;
-  pcl::PointXYZ   center_xyz;
+  PointT   center_xyz;
   Eigen::Vector3f   point_help;
 
 
