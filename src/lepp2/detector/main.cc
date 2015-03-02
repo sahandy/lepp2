@@ -127,8 +127,9 @@ int main(int argc, char* argv[]) {
   // The visualizer is additionally decorated by the "smoothener" to smooth out
   // the output...
   boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
-      new SmoothObstacleAggregator(*visualizer));
+      new SmoothObstacleAggregator);
   detector->attachObstacleAggregator(smooth_decorator);
+  smooth_decorator->attachObstacleAggregator(visualizer);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();

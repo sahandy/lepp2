@@ -155,7 +155,10 @@ int main(int argc, char* argv[]) {
   // Send obstacles to a visualizer too...
   boost::shared_ptr<LolaAggregator> lola(
       new LolaAggregator("127.0.0.1", 53250));
-  detector->attachObstacleAggregator(lola);
+  boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
+      new SmoothObstacleAggregator);
+  detector->attachObstacleAggregator(smooth_decorator);
+  smooth_decorator->attachObstacleAggregator(lola);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
