@@ -275,6 +275,13 @@ void SmoothObstacleAggregator::adaptTracked(
         (new_obstacles[i]->center_point() - tracked_models_[model_id]->center_point()) / 2;
     BlendVisitor blender(translation_vec);
     tracked_models_[model_id]->accept(blender);
+    if (frame_cnt_ % 30 == 0) {
+      CompositeModel* tracked = dynamic_cast<CompositeModel*>(&*tracked_models_[model_id]);
+      CompositeModel* new_model = dynamic_cast<CompositeModel*>(&*new_obstacles[i]);
+      if (tracked && new_model) {
+        tracked->set_models(new_model->models());
+      }
+    }
   }
 }
 
