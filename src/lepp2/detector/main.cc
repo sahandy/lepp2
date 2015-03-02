@@ -24,6 +24,10 @@
 
 using namespace lepp;
 
+namespace {
+  typedef SimplePoint PointT;
+}
+
 /**
  * Prints out the expected CLI usage of the program.
  */
@@ -43,19 +47,19 @@ template<class PointT>
 boost::shared_ptr<FilteredVideoSource<PointT> >
 buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
   // Wrap the given raw source.
-  boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
-      new SimpleFilteredVideoSource<SimplePoint>(raw));
+  boost::shared_ptr<FilteredVideoSource<PointT> > source(
+      new SimpleFilteredVideoSource<PointT>(raw));
   // Now set the point filters that should be used.
   {
     double const a = 1.0117;
     double const b = -0.0100851;
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new SensorCalibrationFilter<SimplePoint>(a, b));
+    boost::shared_ptr<PointFilter<PointT> > filter(
+        new SensorCalibrationFilter<PointT>(a, b));
     source->addFilter(filter);
   }
   {
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new TruncateFilter<SimplePoint>(2));
+    boost::shared_ptr<PointFilter<PointT> > filter(
+        new TruncateFilter<PointT>(2));
     source->addFilter(filter);
   }
 
@@ -66,57 +70,57 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
  * Parses the command line arguments received by the program and chooses
  * the appropriate video source based on those.
  */
-boost::shared_ptr<SimpleVideoSource> GetVideoSource(int argc, char* argv[]) {
+boost::shared_ptr<VideoSource<PointT> > GetVideoSource(int argc, char* argv[]) {
   if (argc < 2) {
-    return boost::shared_ptr<SimpleVideoSource>();
+    return boost::shared_ptr<VideoSource<PointT> >();
   }
 
   std::string const option = argv[1];
   if (option == "--stream") {
-    return boost::shared_ptr<SimpleVideoSource>(
-        new LiveStreamSource<SimplePoint>());
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new LiveStreamSource<PointT>());
   } else if (option == "--pcd" && argc >= 3) {
     std::string const file_path = argv[2];
-    boost::shared_ptr<pcl::Grabber> interface(new pcl::PCDGrabber<SimplePoint>(
+    boost::shared_ptr<pcl::Grabber> interface(new pcl::PCDGrabber<PointT>(
       file_path,
       20.,
       true));
-    return boost::shared_ptr<SimpleVideoSource>(
-        new GeneralGrabberVideoSource<SimplePoint>(interface));
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new GeneralGrabberVideoSource<PointT>(interface));
   } else if (option == "--oni" && argc >= 3) {
     std::string const file_path = argv[2];
     boost::shared_ptr<pcl::Grabber> interface(new pcl::io::OpenNI2Grabber(
       file_path,
       pcl::io::OpenNI2Grabber::OpenNI_Default_Mode,
       pcl::io::OpenNI2Grabber::OpenNI_Default_Mode));
-    return boost::shared_ptr<SimpleVideoSource>(
-        new GeneralGrabberVideoSource<SimplePoint>(interface));
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new GeneralGrabberVideoSource<PointT>(interface));
   }
 
   // Unknown option: return a "null" pointer.
-  return boost::shared_ptr<SimpleVideoSource>();
+  return boost::shared_ptr<VideoSource<PointT> >();
 }
 
 int main(int argc, char* argv[]) {
   // Obtain a video source based on the command line arguments received
-  boost::shared_ptr<SimpleVideoSource> raw_source(GetVideoSource(argc, argv));
+  boost::shared_ptr<VideoSource<PointT> > raw_source(GetVideoSource(argc, argv));
   if (!raw_source) {
     PrintUsage();
     return 1;
   }
   // Wrap the raw source in a filter
-  boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
+  boost::shared_ptr<FilteredVideoSource<PointT> > source(
       buildFilteredSource(raw_source));
   // Prepare the detector
-  boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(
-      new BaseObstacleDetector<SimplePoint>());
+  boost::shared_ptr<BaseObstacleDetector<PointT> > detector(
+      new BaseObstacleDetector<PointT>());
   // Attaching the detector to the source: process the point clouds obtained
   // by the source.
   source->attachObserver(detector);
 
   // Prepare the result visualizer...
-  boost::shared_ptr<ObstacleVisualizer<SimplePoint> > visualizer(
-      new ObstacleVisualizer<SimplePoint>());
+  boost::shared_ptr<ObstacleVisualizer<PointT> > visualizer(
+      new ObstacleVisualizer<PointT>());
   // Attaching the visualizer to the source: allow it to display the original
   // point cloud.
   source->attachObserver(visualizer);
