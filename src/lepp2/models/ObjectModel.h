@@ -54,12 +54,27 @@ class CapsuleModel;
  */
 class ObjectModel {
 public:
+  ObjectModel() : id_(0) {}
+
   virtual void accept(ModelVisitor& visitor) = 0;
   virtual Coordinate center_point() const = 0;
 
   virtual ~ObjectModel() {}
+  /**
+   * Returns the ID associated with the object. If the ID is 0, it means that
+   * no meaningful ID was associated.
+   *
+   * Therefore, 0 is the default value returned, unless `set_id` is called.
+   */
+  int id() const { return id_; }
+  /**
+   * Sets the object's ID.
+   */
+  void set_id(int id) { id_ = id; }
 
   friend std::ostream& operator<<(std::ostream& out, ObjectModel const& model);
+private:
+  int id_;
 };
 
 typedef boost::shared_ptr<ObjectModel> ObjectModelPtr;
