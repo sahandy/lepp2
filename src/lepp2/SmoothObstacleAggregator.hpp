@@ -273,6 +273,8 @@ SmoothObstacleAggregator::matchToPrevious(
     tracked_models_[model_id] = new_obstacles[corresp];
     frames_lost_[model_id] = 0;
     frames_found_[model_id] = 0;
+    // We assign it the ID here too!
+    new_obstacles[corresp]->set_id(model_id);
   }
 
   return correspondence;
