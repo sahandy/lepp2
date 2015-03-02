@@ -21,7 +21,7 @@
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
 #include "lola/OdoCoordinateTransformer.hpp"
-#include "lola/LolaAggregator.hpp"
+#include "lola/LolaAggregator.h"
 #include "lola/PoseService.h"
 #include "lola/RobotService.h"
 
