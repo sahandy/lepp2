@@ -168,7 +168,7 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   // Process the cloud received from the wrapped instance and put the filtered
   // result in a new point cloud.
   typename PointCloudType::Ptr cloud_filtered(new PointCloudType());
-  PointCloudType& filtered = *cloud_filtered;
+  auto& filtered = *cloud_filtered;
   cloud_filtered->is_dense = true;
   cloud_filtered->sensor_origin_ = cloud->sensor_origin_;
 
@@ -240,7 +240,7 @@ protected:
 
   void newPoint(PointT& p, PointCloudType& filtered) {
     MapPoint map_point = MapPoint(p.x * 100, p.y * 100, p.z * 100);
-    boost::circular_buffer<bool>& ref = all_points_[map_point];
+    auto& ref = all_points_[map_point];
     // TODO Factor out the percentage and number of frames that are considered
     //      to a member constant.
     if (ref.capacity() == 0) {
@@ -251,8 +251,7 @@ protected:
   }
 
   void getFiltered(PointCloudType& filtered) {
-    boost::unordered_map<MapPoint, boost::circular_buffer<bool> >::iterator it =
-        all_points_.begin();
+    auto it = all_points_.begin();
     while (it != all_points_.end()) {
       if (this_frame_.find(it->first) == this_frame_.end()) {
         it->second.push_back(false);
@@ -297,8 +296,7 @@ protected:
   }
 
   void getFiltered(PointCloudType& filtered) {
-    boost::unordered_map<MapPoint, float>::iterator it =
-        all_points_.begin();
+    auto it = all_points_.begin();
     while (it != all_points_.end()) {
       if (this_frame_.find(it->first) == this_frame_.end()) {
         it->second = 0.9*it->second + 0.1*0.;

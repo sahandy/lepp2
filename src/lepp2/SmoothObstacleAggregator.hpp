@@ -324,7 +324,7 @@ void SmoothObstacleAggregator::updateLostAndFound(
 void SmoothObstacleAggregator::dropLostObjects() {
   // Drop obstacles that haven't been seen in a while
   // !!!NOTE!!! Deleting while iterating is no longer the same in C++11!
-  std::map<model_id_t, int>::iterator it = frames_lost_.begin();
+  auto it = frames_lost_.begin();
   int const LOST_LIMIT = 10;
   while (it != frames_lost_.end()) {
     if (it->second >= LOST_LIMIT) {
@@ -354,7 +354,7 @@ void SmoothObstacleAggregator::dropLostObjects() {
 
 void SmoothObstacleAggregator::materializeFoundObjects() {
   int const FOUND_LIMIT = 5;
-  std::map<model_id_t, int>::iterator it = frames_found_.begin();
+  auto it = frames_found_.begin();
   while (it != frames_found_.end()) {
     // Deconstruct the iterator pair for convenience
     model_id_t const model_id = it->first;
@@ -366,7 +366,7 @@ void SmoothObstacleAggregator::materializeFoundObjects() {
       // Materialize it...
       materialized_models_.push_back(model);
       // ...and make sure we know where in the list it got inserted.
-      std::list<ObjectModelPtr>::iterator pos = materialized_models_.end();
+      auto pos = materialized_models_.end();
       --pos;
       model_idx_in_list_[model_id] = pos;
       // Finally, make sure we remove it from the mapping so that we don't end
@@ -400,7 +400,7 @@ void SmoothObstacleAggregator::updateObstacles(
   ++frame_cnt_;
   std::cout << "#new = " << obstacles.size() << std::endl;
 
-  std::map<model_id_t, size_t> correspondence = matchToPrevious(obstacles);
+  auto correspondence = matchToPrevious(obstacles);
   updateLostAndFound(correspondence);
   adaptTracked(correspondence, obstacles);
   dropLostObjects();

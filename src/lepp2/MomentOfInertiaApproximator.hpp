@@ -84,10 +84,10 @@ MomentOfInertiaObjectApproximator<PointT>::approximate(
 
   int iteration = 0;
   while (!queue.empty()) {
-    PointCloudConstPtr current_cloud = queue[0];
+    auto current_cloud = queue[0];
     queue.pop_front();
 
-    ObjectModelPtr model = getSingleApproximation(current_cloud);
+    auto model = getSingleApproximation(current_cloud);
     // TODO Decide whether the model fits well enough for the current cloud.
     // For now we fix the number of iterations.
     if (iteration == 0) {
