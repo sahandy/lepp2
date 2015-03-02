@@ -207,10 +207,8 @@ SmoothObstacleAggregator::getMatchByDistance(ObjectModelPtr model) {
   bool found = false;
   double min_dist = 1e10;
   model_id_t match = 0;
-  for (std::map<model_id_t, ObjectModelPtr>::const_iterator it = tracked_models_.begin();
-        it != tracked_models_.end();
-        ++it) {
-    Coordinate const p(it->second->center_point());
+  for (auto const& elem : tracked_models_) {
+    Coordinate const p(elem.second->center_point());
     double const dist =
         (p.x - query_point.x) * (p.x - query_point.x) +
         (p.y - query_point.y) * (p.y - query_point.y) +
@@ -222,7 +220,7 @@ SmoothObstacleAggregator::getMatchByDistance(ObjectModelPtr model) {
       found = true;
       if (dist <= min_dist) {
         min_dist = dist;
-        match = it->first;
+        match = elem.first;
       }
     }
     std::cout << std::endl;
@@ -253,22 +251,24 @@ SmoothObstacleAggregator::matchToPrevious(
   // First we match each new obstacle to one of the models that is currently
   // being tracked or give it a brand new model ID, if we are unable to find a
   // match.
-  for (size_t i = 0; i < new_obstacles.size(); ++i) {
-    std::cout << "Matching " << i << " (" << *new_obstacles[i] << ")" << std::endl;
-    model_id_t const model_id = getMatchByDistance(new_obstacles[i]);
+  size_t i = 0;
+  for (auto const& new_obstacle : new_obstacles) {
+    std::cout << "Matching " << i << " (" << *new_obstacle << ")" << std::endl;
+    model_id_t const model_id = getMatchByDistance(new_obstacle);
     std::cout << "Matched " << i << " --> " << model_id << std::endl;
     correspondence[model_id] = i;
     // If this one wasn't in the tracked models before, add it!
     if (tracked_models_.find(model_id) == tracked_models_.end()) {
       new_in_frame.push_back(std::make_pair(model_id, i));
     }
+    ++i;
   }
 
   // We start tracking each obstacle for which we were unable to find a match
   // in the currently tracked list of objects.
-  for (size_t i = 0; i < new_in_frame.size(); ++i) {
-    model_id_t const& model_id = new_in_frame[i].first;
-    size_t const corresp = new_in_frame[i].second;
+  for (auto const& elem : new_in_frame) {
+    model_id_t const& model_id = elem.first;
+    size_t const corresp = elem.second;
     std::cout << "Inserting previously untracked model " << model_id << std::endl;
     tracked_models_[model_id] = new_obstacles[corresp];
     frames_lost_[model_id] = 0;
@@ -283,11 +283,9 @@ SmoothObstacleAggregator::matchToPrevious(
 void SmoothObstacleAggregator::adaptTracked(
     std::map<model_id_t, size_t> const& correspondence,
     std::vector<ObjectModelPtr> const& new_obstacles) {
-  for (std::map<model_id_t, size_t>::const_iterator it = correspondence.begin();
-        it != correspondence.end();
-        ++it) {
-    model_id_t const& model_id = it->first;
-    int const& i = it->second;
+  for (auto const& elem : correspondence) {
+    model_id_t const& model_id = elem.first;
+    int const& i = elem.second;
     // Blend the new representation into the one we're tracking
     Coordinate const translation_vec =
         (new_obstacles[i]->center_point() - tracked_models_[model_id]->center_point()) / 2;
@@ -305,10 +303,8 @@ void SmoothObstacleAggregator::adaptTracked(
 
 void SmoothObstacleAggregator::updateLostAndFound(
     std::map<model_id_t, size_t> const& new_matches) {
-  for (std::map<model_id_t, boost::shared_ptr<ObjectModel> >::const_iterator it = tracked_models_.begin();
-        it != tracked_models_.end();
-        ++it) {
-    model_id_t const& model_id = it->first;
+  for (auto const& elem : tracked_models_) {
+    model_id_t const& model_id = elem.first;
     if (new_matches.find(model_id) != new_matches.end()) {
       // Update the seen count only if the object isn't already materialized.
       if (model_idx_in_list_.find(model_id) == model_idx_in_list_.end()) {
@@ -394,9 +390,8 @@ std::vector<ObjectModelPtr> SmoothObstacleAggregator::copyMaterialized() {
 
 void SmoothObstacleAggregator::notifyAggregators(
     std::vector<ObjectModelPtr> const& obstacles) {
-  size_t const sz = aggregators_.size();
-  for (size_t i = 0; i < sz; ++i) {
-    aggregators_[i]->updateObstacles(obstacles);
+  for (auto& aggregator : aggregators_) {
+    aggregator->updateObstacles(obstacles);
   }
 }
 

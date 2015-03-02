@@ -185,11 +185,9 @@ void MomentOfInertiaObjectApproximator<PointT>::splitCloud(
   );
 
   // Now divide the input cloud into two clusters based on the splitting plane
-  size_t const sz = point_cloud->size();
-  for (size_t i = 0; i < sz; ++i) {
+  for (auto const& original_point : *point_cloud) {
     // Boost the precision of the points we are dealing with to make the
     // calculation more precise.
-    PointT const& original_point = (*point_cloud)[i];
     Eigen::Vector3f const vector_point = original_point.getVector3fMap();
     Eigen::Vector3d const point = vector_point.cast<double>();
     // Decide on which side of the plane the current point is and add it to the

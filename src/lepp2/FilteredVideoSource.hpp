@@ -159,11 +159,8 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   t.start();
 
   // Prepare the point-wise filters for a new frame.
-  {
-    size_t sz = point_filters_.size();
-    for (size_t i = 0; i < sz; ++i) {
-      point_filters_[i]->prepareNext();
-    }
+  for (auto& filter : point_filters_) {
+    filter->prepareNext();
   }
   // Prepare the concrete cloud filter implementation for a new frame.
   this->newFrame();
@@ -177,10 +174,9 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
 
   // Apply point-wise filters to each received point and then pass it to the
   // concrete implementation to figure out how to filter the entire cloud.
-  for (typename pcl::PointCloud<PointT>::const_iterator it = cloud->begin();
-        it != cloud->end();
-        ++it) {
-    PointT p = *it;
+  for (auto& orig : *cloud) {
+    // We copy the original point, since we want to modify it by applying filters
+    PointT p(orig);
     // Filter out NaN points already, since we're already iterating through the
     // cloud.
     if (!pcl_isfinite(p.x) || !pcl_isfinite(p.y) || !pcl_isfinite(p.z)) {
@@ -188,10 +184,9 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
     }
 
     // Now apply point-wise filters.
-    size_t const sz = point_filters_.size();
     bool valid = true;
-    for (size_t i = 0; i < sz; ++i) {
-      if (!point_filters_[i]->apply(p)) {
+    for (auto& filter : point_filters_) {
+      if (!filter->apply(p)) {
         valid = false;
         break;
       }

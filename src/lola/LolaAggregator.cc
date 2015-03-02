@@ -87,12 +87,10 @@ std::vector<char> LolaAggregator::buildPayload(
     std::vector<ObjectModelPtr> const& obstacles) const {
   std::vector<char> payload;
 
-  size_t const sz = obstacles.size();
-  for (int i = 0; i < sz; ++i) {
-    ObjectModel& model = *obstacles[i];
+  for (auto& model : obstacles) {
     // Get the "flattened" model representation.
     ParametersVisitor parameterizer;
-    model.accept(parameterizer);
+    model->accept(parameterizer);
     std::vector<double> params(parameterizer.params());
 
     // Since the model could have been a composite, we may have more than 1
@@ -178,14 +176,13 @@ RobotAggregator::RobotAggregator(RobotService& service, int freq)
 void RobotAggregator::new_cb_(ObjectModel& model) {
   // Assign an ID to each part of the new model.
   std::vector<ObjectModel*> primitives(getPrimitives(model));
-  size_t const sz = primitives.size();
   std::vector<int>& ids = robot_ids_[model.id()];
-  for (size_t i = 0; i < sz; ++i) {
+  for (auto& primitive : primitives) {
     // Assign it a new ID
     int const id = nextId();
     ids.push_back(id);
     // ...and send a message to the robot.
-    sendNew(*primitives[i], id);
+    sendNew(*primitive, id);
   }
 }
 
@@ -193,8 +190,8 @@ void RobotAggregator::del_cb_(int obj_id) {
   // Delete all parts of the deleted object.
   {
     std::vector<int>& ids = robot_ids_[obj_id];
-    for (size_t i = 0; i < ids.size(); ++i) {
-      sendDelete(ids[i]);
+    for (auto& del_id : ids) {
+      sendDelete(del_id);
     }
   }
   // Remove it from the map too.

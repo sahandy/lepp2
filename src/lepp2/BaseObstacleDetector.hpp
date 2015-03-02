@@ -104,10 +104,9 @@ void BaseObstacleDetector<PointT>::update() {
   std::vector<PointCloudConstPtr> segments(segmenter_->segment(cloud_));
 
   // Iteratively approximate the segments
-  size_t segment_count = segments.size();
   std::vector<ObjectModelPtr> models;
-  for (size_t i = 0; i < segment_count; ++i) {
-    models.push_back(approximator_->approximate(segments[i]));
+  for (auto& segment : segments) {
+    models.push_back(approximator_->approximate(segment));
   }
   t.stop();
   std::cerr << "Obstacle detection took " << t.duration() << std::endl;
@@ -123,10 +122,9 @@ void BaseObstacleDetector<PointT>::attachObstacleAggregator(
 
 template<class PointT>
 void BaseObstacleDetector<PointT>::notifyObstacles(
-  std::vector<ObjectModelPtr> const& models) {
-  size_t sz = aggregators.size();
-  for (size_t i = 0; i < sz; ++i) {
-    aggregators[i]->updateObstacles(models);
+    std::vector<ObjectModelPtr> const& models) {
+  for (auto& aggregator : aggregators) {
+    aggregator->updateObstacles(models);
   }
 }
 

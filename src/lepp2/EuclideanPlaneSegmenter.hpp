@@ -169,14 +169,12 @@ EuclideanPlaneSegmenter<PointT>::clustersToPointClouds(
   // Now copy the points belonging to each cluster to a separate PointCloud
   // and finally return a vector of these point clouds.
   std::vector<CloudConstPtr> ret;
-  size_t const cluster_count = cluster_indices.size();
-  for (size_t i = 0; i < cluster_count; ++i) {
+  for (auto const& cluster : cluster_indices) {
     typename PointCloudT::Ptr current(new PointCloudT());
-    std::vector<int> const& curr_indices = cluster_indices[i].indices;
-    size_t const curr_indices_sz = curr_indices.size();
-    for (size_t j = 0; j < curr_indices_sz; ++j) {
+    std::vector<int> const& curr_indices = cluster.indices;
+    for (auto const& index : curr_indices) {
       // add the point to the corresponding point cloud
-      current->push_back(cloud_filtered->at(curr_indices[j]));
+      current->push_back(cloud_filtered->at(index));
     }
 
     ret.push_back(current);

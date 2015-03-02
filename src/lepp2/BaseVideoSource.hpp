@@ -92,9 +92,8 @@ template<class PointT>
 void VideoSource<PointT>::notifyObservers(
     int idx,
     const typename pcl::PointCloud<PointT>::ConstPtr& cloud) const {
-  size_t const sz = observers_.size();
-  for (size_t i = 0; i < sz; ++i) {
-    observers_[i]->notifyNewFrame(idx, cloud);
+  for (auto& observer : observers_) {
+    observer->notifyNewFrame(idx, cloud);
   }
 }
 
