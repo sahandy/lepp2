@@ -143,10 +143,14 @@ private:
    * O(1).
    */
   std::map<model_id_t, std::list<ObjectModelPtr>::iterator> model_idx_in_list_;
+  /**
+   * Current count of the number of frames processed by the aggregator.
+   */
+  int frame_cnt_;
 };
 
 SmoothObstacleAggregator::SmoothObstacleAggregator(ObstacleAggregator& aggregator)
-    : aggregator_(aggregator), next_model_id_(0) {}
+    : aggregator_(aggregator), next_model_id_(0), frame_cnt_(0) {}
 
 SmoothObstacleAggregator::model_id_t SmoothObstacleAggregator::nextModelId() {
   return next_model_id_++;
@@ -320,6 +324,7 @@ std::vector<ObjectModelPtr> SmoothObstacleAggregator::copyMaterialized() {
 
 void SmoothObstacleAggregator::updateObstacles(
     std::vector<ObjectModelPtr> const& obstacles) {
+  ++frame_cnt_;
   std::cout << "#new = " << obstacles.size() << std::endl;
 
   std::map<model_id_t, size_t> correspondence = matchToPrevious(obstacles);
