@@ -2,6 +2,8 @@
 #define LOLA_ROBOT_SERVICE_H__
 
 #include <boost/asio.hpp>
+#include <cstring>
+#include <iostream>
 
 /**
  * A struct representing the raw vision message format that is sent to the
@@ -12,11 +14,35 @@ struct VisionMessage {
   uint32_t len;
   float params[15];
 
+  VisionMessage() : len(sizeof params) {}
+
   // IDs for particular vision operations.
   static uint32_t const SET_SSV = 0x203;
   static uint32_t const MODIFY_SSV = 0x206;
   static uint32_t const REMOVE_SSV = 0x207;
+
+  // Static factory functions. Facilitate creating the messages without worrying
+  // about the internal format.
+  /**
+   * Creates a `VisionMessage` that says that an object with the given ID
+   * should be removed.
+   */
+  static VisionMessage DeleteMessage(int object_id);
+  /**
+   * Creates a `VisionMessage` that says that a new object with the given
+   * parameters should be created.
+   */
+  static VisionMessage SetMessage(
+      int type_id, int model_id, double radius, std::vector<double> const& coefs);
+  /**
+   * Creates a `VisionMessage` that says that an existing object with the given
+   * ID should be modified according to the given parameters.
+   */
+  static VisionMessage ModifyMessage(
+      int type_id, int model_id, double radius, std::vector<double> const& coefs);
 };
+
+std::ostream& operator<<(std::ostream& out, VisionMessage const& msg);
 
 /**
  * A class that implements a service which can send vision-related notifications
