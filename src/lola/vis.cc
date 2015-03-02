@@ -3,6 +3,7 @@
  * and visualizing their approximations.
  */
 #include <iostream>
+#define linux 1
 
 #include <pcl/io/openni2_grabber.h>
 #include <pcl/io/pcd_grabber.h>

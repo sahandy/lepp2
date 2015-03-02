@@ -8,6 +8,8 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
 option(LEPP_BUILD_EXAMPLES "Build LEPP examples" FALSE)
 option(LEPP_BUILD_DETECTOR "Build an obstacle detector" TRUE)
 option(LEPP_BUILD_LOLA "Build an obstacle detector for LOLA" TRUE)
