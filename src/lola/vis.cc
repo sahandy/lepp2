@@ -23,6 +23,7 @@
 #include "lola/OdoCoordinateTransformer.hpp"
 #include "lola/LolaAggregator.hpp"
 #include "lola/PoseService.h"
+#include "lola/RobotService.h"
 
 using namespace lepp;
 
@@ -151,14 +152,22 @@ int main(int argc, char* argv[]) {
   // Attaching the visualizer to the source: allow it to display the original
   // point cloud.
   source->attachObserver(visualizer);
-  detector->attachObstacleAggregator(visualizer);
-  // Send obstacles to a visualizer too...
-  boost::shared_ptr<LolaAggregator> lola(
-      new LolaAggregator("127.0.0.1", 53250));
+
+  // Attach the obstacle postprocessor.
   boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
       new SmoothObstacleAggregator);
   detector->attachObstacleAggregator(smooth_decorator);
+  // Now attach various aggregators that are only interested in postprocessed
+  // obstacles.
+  boost::shared_ptr<LolaAggregator> lola(
+      new LolaAggregator("127.0.0.1", 53250));
   smooth_decorator->attachObstacleAggregator(lola);
+  smooth_decorator->attachObstacleAggregator(visualizer);
+
+  RobotService robot_service("127.0.0.1", 1337);
+  robot_service.start();
+  boost::shared_ptr<RobotAggregator> robot(new RobotAggregator(robot_service, 10));
+  smooth_decorator->attachObstacleAggregator(robot);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
