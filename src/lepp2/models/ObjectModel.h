@@ -249,5 +249,29 @@ inline std::ostream& operator<<(std::ostream& out, ObjectModel const& model) {
   return out;
 }
 
+/**
+ * A `ModelVisitor` implementation that can flatten out a given model into its
+ * most primitive parts. Regardless how many composite model "levels" there are,
+ * in the end it will yield only the primitive ones.
+ *
+ * After a model that should be flattened out has accepted an instance of this
+ * visitor, the list of primitives can be obtained by using the `objs` accessor.
+ *
+ * Note: When using this visitor, extreme care must be taken not to let the list
+ *       of primitives (or any of the pointers contained therein) outlive the
+ *       actual model instance that it was obtained from, since then the
+ *       pointers would be left dangling. In other words, the visitor does not
+ *       in any way facilitate prolonging the lifetime of the primitive parts
+ *       found in the model that it visits.
+ */
+class FlattenVisitor : public ModelVisitor {
+public:
+  void visitSphere(SphereModel& sphere) { objs_.push_back(&sphere); }
+  void visitCapsule(CapsuleModel& capsule) { objs_.push_back(&capsule); }
+  std::vector<ObjectModel*> const& objs() const { return objs_; }
+private:
+  std::vector<ObjectModel*> objs_;
+};
+
 }  // namespace lepp
 #endif
