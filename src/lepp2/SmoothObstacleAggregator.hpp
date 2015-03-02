@@ -8,6 +8,28 @@
 namespace lepp {
 
 /**
+ * A visitor implementation that will perform a translation of models that it
+ * visits by the given translation vector.
+ */
+class BlendVisitor : public ModelVisitor {
+public:
+  /**
+   * Create a new `BlendVisitor` that will translate objects by the given
+   * vector.
+   */
+  BlendVisitor(Coordinate translation_vec) : translation_vec_(translation_vec) {}
+  void visitSphere(SphereModel& sphere) {
+    sphere.set_center(sphere.center() + translation_vec_);
+  }
+  void visitCapsule(CapsuleModel& capsule) {
+    capsule.set_first(capsule.first() + translation_vec_);
+    capsule.set_second(capsule.second() + translation_vec_);
+  }
+private:
+  Coordinate const translation_vec_;
+};
+
+/**
  * An `ObstacleAggregator` decorator.
  *
  * It takes the obstacles found by an obstacle detector and applies some
@@ -55,6 +77,13 @@ private:
    * list.
    */
   std::map<model_id_t, size_t> matchToPrevious(
+      std::vector<ObjectModelPtr> const& new_obstacles);
+  /**
+   * Adapts the currently tracked objects by taking into account their new
+   * representations.
+   */
+  void adaptTracked(
+      std::map<model_id_t, size_t> const& correspondence,
       std::vector<ObjectModelPtr> const& new_obstacles);
   /**
    * Updates the internal `frames_found_` and `frames_lost_` counters for each
@@ -233,6 +262,22 @@ SmoothObstacleAggregator::matchToPrevious(
   return correspondence;
 }
 
+void SmoothObstacleAggregator::adaptTracked(
+    std::map<model_id_t, size_t> const& correspondence,
+    std::vector<ObjectModelPtr> const& new_obstacles) {
+  for (std::map<model_id_t, size_t>::const_iterator it = correspondence.begin();
+        it != correspondence.end();
+        ++it) {
+    model_id_t const& model_id = it->first;
+    int const& i = it->second;
+    // Blend the new representation into the one we're tracking
+    Coordinate const translation_vec =
+        (new_obstacles[i]->center_point() - tracked_models_[model_id]->center_point()) / 2;
+    BlendVisitor blender(translation_vec);
+    tracked_models_[model_id]->accept(blender);
+  }
+}
+
 void SmoothObstacleAggregator::updateLostAndFound(
     std::map<model_id_t, size_t> const& new_matches) {
   for (std::map<model_id_t, boost::shared_ptr<ObjectModel> >::const_iterator it = tracked_models_.begin();
@@ -329,6 +374,7 @@ void SmoothObstacleAggregator::updateObstacles(
 
   std::map<model_id_t, size_t> correspondence = matchToPrevious(obstacles);
   updateLostAndFound(correspondence);
+  adaptTracked(correspondence, obstacles);
   dropLostObjects();
   materializeFoundObjects();
   std::vector<ObjectModelPtr> smooth_obstacles(copyMaterialized());
