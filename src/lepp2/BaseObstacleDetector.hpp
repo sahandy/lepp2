@@ -13,6 +13,7 @@
 #include "lepp2/ObstacleAggregator.hpp"
 #include "lepp2/ObjectApproximator.hpp"
 #include "lepp2/MomentOfInertiaApproximator.hpp"
+#include "lepp2/SplitApproximator.hpp"
 
 using namespace lepp;
 
@@ -78,7 +79,9 @@ private:
 
 template<class PointT>
 BaseObstacleDetector<PointT>::BaseObstacleDetector()
-    : approximator_(new MomentOfInertiaObjectApproximator<PointT>()),
+    : approximator_(new SplitObjectApproximator<PointT>(
+        boost::shared_ptr<ObjectApproximator<PointT> >(
+          new MomentOfInertiaObjectApproximator<PointT>))),
       segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
   // TODO Allow for dependency injection.
 }

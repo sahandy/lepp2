@@ -23,7 +23,7 @@ public:
    * Create a new `SplitObjectApproximator` that will approximate each part by
    * using the given approximator instance.
    */
-  SplitObjectApproximator(boost::shared_ptr<ObjectApproximator> approx)
+  SplitObjectApproximator(boost::shared_ptr<ObjectApproximator<PointT> > approx)
       : approximator_(approx) {}
   /**
    * `ObjectApproximator` interface method.
@@ -41,16 +41,9 @@ private:
       pcl::PointCloud<PointT>& second);
 
   /**
-   * Returns a point representing an estimation of the position of the center
-   * of mass for the given point cloud.
-   */
-  Eigen::Vector3f estimateMassCenter(
-      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
-
-  /**
    * An `ObjectApproximator` used to generate approximations for object parts.
    */
-  boost::shared_ptr<ObjectApproximator> approximator_;
+  boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
 };
 
 template<class PointT>
@@ -130,5 +123,5 @@ void SplitObjectApproximator<PointT>::splitCloud(
   }
 }
 
-
+}  // namespace lepp
 #endif
