@@ -8,7 +8,6 @@
 #include <pcl/common/pca.h>
 #include <pcl/common/common.h>
 
-#include "lepp2/legacy/moment_of_inertia_estimation.hpp"
 #include "lepp2/models/ObjectModel.h"
 
 namespace lepp {
@@ -106,24 +105,19 @@ template<class PointT>
 boost::shared_ptr<lepp::ObjectModel>
 MomentOfInertiaObjectApproximator<PointT>::getSingleApproximation(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
-
-  // Firstly, obtain the moment of inertia descriptors
+  // Firstly, obtain the principal component descriptors
   float major_value, middle_value, minor_value;
-  Eigen::Vector3f major_vector, middle_vector, minor_vector;
-  // Uses a customized/forked MomentOfInertiaEstimation
-  pcl::MomentOfInertiaEstimation<PointT> moment_of_inertia_extractor;
-  moment_of_inertia_extractor.setInputCloud(point_cloud);
-  moment_of_inertia_extractor.compute();
-  moment_of_inertia_extractor.getEigenValues(major_value,
-                                             middle_value,
-                                             minor_value);
-  moment_of_inertia_extractor.getEigenVectors(major_vector,
-                                              middle_vector,
-                                              minor_vector);
+  pcl::PCA<PointT> pca;
+  pca.setInputCloud(point_cloud);
+  Eigen::Vector3f eigenvalues = pca.getEigenValues();
+  major_value = eigenvalues(0);
+  middle_value = eigenvalues(1);
+  minor_value = eigenvalues(2);
+  Eigen::Matrix3f eigenvectors = pca.getEigenVectors();
   std::vector<Eigen::Vector3f> axes;
-  axes.push_back(major_vector);
-  axes.push_back(middle_vector);
-  axes.push_back(minor_vector);
+  for (size_t i = 0; i < 3; ++i) {
+    axes.push_back(eigenvectors.col(i));
+  }
 
   // Guesstimate the center of mass
   Eigen::Vector3f mass_center(estimateMassCenter(point_cloud));
