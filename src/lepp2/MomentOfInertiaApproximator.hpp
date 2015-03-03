@@ -17,11 +17,6 @@ namespace lepp {
  * An implementation of the ObjectApproximator abstract base class that performs
  * approximations based on a heuristic that chooses one of the object models
  * based on the principal axes of the object.
- *
- * NOTE:
- * Mostly an adaptation of the legacy implementation to the new and improved
- * interface specifications. As such, still depends on some of the legacy
- * constructs, such as ObjectModel(s) and Preallocators.
  */
 template<class PointT>
 class MomentOfInertiaObjectApproximator : public ObjectApproximator<PointT> {
