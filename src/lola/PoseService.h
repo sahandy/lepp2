@@ -22,6 +22,8 @@ using boost::asio::ip::udp;
 
   Struct reused verbatim from the original LOLA source code to keep compatibility.
 */
+#pragma pack(push)
+#pragma pack(1)
 struct HR_Pose
 {
   enum{RIGHT=0,LEFT=1};
@@ -124,6 +126,7 @@ struct HR_Pose
   //!<currently active angular velocity [rad/s]
   float om_act;
 };
+#pragma pack (pop)
 
 /**
  * A class that provides the ability to run a local service that listens to
