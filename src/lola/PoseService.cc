@@ -11,6 +11,8 @@ void PoseService::read_handler(
   if (bytes_transferred != sizeof(HR_Pose)) {
     std::cerr << "Pose Service: Error: Invalid datagram size."
               << "Expected " << sizeof(HR_Pose) << std::endl;
+    // If this one fails, we still queue another receive...
+    queue_recv();
     return;
   }
   boost::shared_ptr<HR_Pose> new_pose(new HR_Pose);
