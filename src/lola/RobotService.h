@@ -5,6 +5,11 @@
 #include <cstring>
 #include <iostream>
 
+// The macro creates an ID for a Robot message.
+// The macro is taken from the LOLA source base.
+// TODO Once C++11 can be used, make this a `constexpr` function, instead of a macro.
+#define __MSG_ID_DEF_GLOBAL(dom,sig)  (0x80000000 | ((dom&0xFF)<<0x10) | (sig&0xFFFF))
+
 /**
  * A struct representing the raw vision message format that is sent to the
  * robot.
@@ -17,9 +22,9 @@ struct VisionMessage {
   VisionMessage() : len(sizeof params) {}
 
   // IDs for particular vision operations.
-  static uint32_t const SET_SSV = 0x203;
-  static uint32_t const MODIFY_SSV = 0x206;
-  static uint32_t const REMOVE_SSV = 0x207;
+  static uint32_t const SET_SSV =  __MSG_ID_DEF_GLOBAL(0x4, 0x203);
+  static uint32_t const MODIFY_SSV =  __MSG_ID_DEF_GLOBAL(0x4, 0x206);
+  static uint32_t const REMOVE_SSV =  __MSG_ID_DEF_GLOBAL(0x4, 0x207);
 
   // Static factory functions. Facilitate creating the messages without worrying
   // about the internal format.
