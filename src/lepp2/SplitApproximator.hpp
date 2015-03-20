@@ -4,6 +4,8 @@
 #include "lepp2/models/ObjectModel.h"
 
 #include <deque>
+#include <map>
+
 #include <pcl/common/pca.h>
 #include <pcl/common/common.h>
 
@@ -52,30 +54,29 @@ boost::shared_ptr<CompositeModel> SplitObjectApproximator<PointT>::approximate(
   boost::shared_ptr<CompositeModel> approx(new CompositeModel);
   typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
   typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
-  std::deque<PointCloudConstPtr> queue;
-  queue.push_back(point_cloud);
+  std::deque<std::pair<int, PointCloudConstPtr> > queue;
+  queue.push_back(std::make_pair(0, point_cloud));
 
-  int iteration = 0;
   while (!queue.empty()) {
-    PointCloudConstPtr current_cloud = queue[0];
+    int const depth = queue[0].first;
+    PointCloudConstPtr const current_cloud = queue[0].second;
     queue.pop_front();
 
     // Delegates to the wrapped approximator for each part's approximation.
     ObjectModelPtr model = approximator_->approximate(current_cloud);
     // TODO Decide whether the model fits well enough for the current cloud.
     // For now we fix the number of split iterations.
-    if (iteration == 0) {
+    if (depth == 0) {
       // The approximation should be improved. Try doing it for the split clouds
       PointCloudPtr first(new pcl::PointCloud<PointT>());
       PointCloudPtr second(new pcl::PointCloud<PointT>());
       splitCloud(current_cloud, *first, *second);
-      queue.push_back(first);
-      queue.push_back(second);
+      queue.push_back(std::make_pair(depth + 1, first));
+      queue.push_back(std::make_pair(depth + 1, second));
     } else {
       // Keep the approximation
       approx->addModel(model);
     }
-    ++iteration;
   }
 
   return approx;
