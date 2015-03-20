@@ -64,7 +64,7 @@ VisionMessage VisionMessage::SetMessage(
   msg.params[3] = radius;
   // 4 - unused
   // 5 - unused
-  for (size_t i = 0; i < coefs.size(); ++i) msg.params[4 + i] = coefs[i];
+  for (size_t i = 0; i < coefs.size(); ++i) msg.params[6 + i] = coefs[i];
 
   return msg;
 }
@@ -80,7 +80,7 @@ VisionMessage VisionMessage::ModifyMessage(
   msg.params[3] = radius;
   // 4 - unused
   // 5 - unused
-  for (size_t i = 0; i < coefs.size(); ++i) msg.params[4 + i] = coefs[i];
+  for (size_t i = 0; i < coefs.size(); ++i) msg.params[6 + i] = coefs[i];
 
   return msg;
 }
