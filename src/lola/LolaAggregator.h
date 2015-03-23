@@ -102,15 +102,19 @@ private:
   /**
    * Sends a message to the robot informing it of a new model.
    */
-  void sendNew(ObjectModel& new_model, int id);
+  void sendNew(ObjectModel& new_model, int model_id, int part_id);
   /**
    * Sends a message to the robot informing it of a deleted model.
    */
   void sendDelete(int id);
   /**
+   * Sends a message to the robot informing it of a deleted part of a model.
+   */
+  void sendDeletePart(int model_id, int part_id);
+  /**
    * Sends a message to the robot informing it of a modified model.
    */
-  void sendModify(ObjectModel& model, int id);
+  void sendModify(ObjectModel& model, int model_id, int part_id);
   /**
    * Obtains the next ID that should be used for a primitive that the robot is
    * notified of.

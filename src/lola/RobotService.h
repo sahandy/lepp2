@@ -26,25 +26,36 @@ struct VisionMessage {
   static uint32_t const MODIFY_SSV =  __MSG_ID_DEF_GLOBAL(0x4, 0x206);
   static uint32_t const REMOVE_SSV =  __MSG_ID_DEF_GLOBAL(0x4, 0x207);
 
+  // Flags (passed in parameter at the index 4 in delete messages) indicating
+  // whether the entire object model should be removed or only a part.
+  static float const DEL_WHOLE_SEGMENT_FLAG = 0;
+  static float const DEL_ONLY_PART_FLAG = 1;
+
   // Static factory functions. Facilitate creating the messages without worrying
   // about the internal format.
   /**
    * Creates a `VisionMessage` that says that an object with the given ID
-   * should be removed.
+   * should be removed. The entire model is removed, including all of its child
+   * parts.
    */
-  static VisionMessage DeleteMessage(int object_id);
+  static VisionMessage DeleteMessage(int model_id);
+  /**
+   * Creates a `VisionMessage` that says that a particular part of a larger model
+   * should be deleted.
+   */
+  static VisionMessage DeletePartMessage(int model_id, int part_id);
   /**
    * Creates a `VisionMessage` that says that a new object with the given
    * parameters should be created.
    */
   static VisionMessage SetMessage(
-      int type_id, int model_id, double radius, std::vector<double> const& coefs);
+      int type_id, int model_id, int part_id, double radius, std::vector<double> const& coefs);
   /**
    * Creates a `VisionMessage` that says that an existing object with the given
    * ID should be modified according to the given parameters.
    */
   static VisionMessage ModifyMessage(
-      int type_id, int model_id, double radius, std::vector<double> const& coefs);
+      int type_id, int model_id, int part_id, double radius, std::vector<double> const& coefs);
 };
 
 std::ostream& operator<<(std::ostream& out, VisionMessage const& msg);

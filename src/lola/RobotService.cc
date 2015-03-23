@@ -41,26 +41,46 @@ namespace {
   }
 }
 
-VisionMessage VisionMessage::DeleteMessage(int object_id) {
-  std::cout << "Constructing with object_id = " << object_id << std::endl;
+VisionMessage VisionMessage::DeleteMessage(int model_id) {
+  std::cout << "Constructing with object_id = " << model_id << std::endl;
   VisionMessage msg;
   msg.id = REMOVE_SSV;
   msg.len = sizeof params;
   memset(msg.params, 0, sizeof msg.params);
-  msg.params[1] = object_id;
+  // 0 - unused, no point setting the type
+  msg.params[1] = model_id;
+  // 2 - unused -- since the entire model is getting removed...
+  // 3 - unused, no point setting the radius
+  msg.params[4] = VisionMessage::DEL_WHOLE_SEGMENT_FLAG;
+  // The rest of the parameters are also irrelevant.
+  std::cout << "Constructed " << msg << std::endl;
+  return msg;
+}
 
+VisionMessage VisionMessage::DeletePartMessage(int model_id, int part_id) {
+  std::cout << "Constructing with object_id = " << part_id << std::endl;
+  VisionMessage msg;
+  msg.id = REMOVE_SSV;
+  msg.len = sizeof params;
+  memset(msg.params, 0, sizeof msg.params);
+  // 0 - unused, no point setting the type
+  msg.params[1] = model_id;
+  msg.params[2] = part_id;
+  // 3 - unused, no point setting the radius
+  msg.params[4] = VisionMessage::DEL_ONLY_PART_FLAG;
+  // The rest of the parameters are also irrelevant.
   std::cout << "Constructed " << msg << std::endl;
   return msg;
 }
 
 VisionMessage VisionMessage::SetMessage(
-    int type_id, int model_id, double radius, std::vector<double> const& coefs) {
+    int type_id, int model_id, int part_id, double radius, std::vector<double> const& coefs) {
   VisionMessage msg;
   msg.id = SET_SSV;
   memset(msg.params, 0, sizeof msg.params);
   msg.params[0] = type_id;
   msg.params[1] = model_id;
-  // 2 - unsused
+  msg.params[2] = part_id;
   msg.params[3] = radius;
   // 4 - unused
   // 5 - unused
@@ -70,13 +90,13 @@ VisionMessage VisionMessage::SetMessage(
 }
 
 VisionMessage VisionMessage::ModifyMessage(
-    int type_id, int model_id, double radius, std::vector<double> const& coefs) {
+    int type_id, int model_id, int part_id, double radius, std::vector<double> const& coefs) {
   VisionMessage msg;
   msg.id = MODIFY_SSV;
   memset(msg.params, 0, sizeof msg.params);
   msg.params[0] = type_id;
   msg.params[1] = model_id;
-  // 2 - unsused
+  msg.params[2] = part_id;
   msg.params[3] = radius;
   // 4 - unused
   // 5 - unused
