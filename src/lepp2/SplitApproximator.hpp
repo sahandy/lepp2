@@ -40,6 +40,88 @@ public:
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
 };
 
+template<class PointT>
+class DepthLimitSplitStrategy : public SplitStrategy<PointT> {
+public:
+  DepthLimitSplitStrategy(int depth_limit) : limit_(depth_limit) {}
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
+      int split_depth,
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
+private:
+  /**
+   * A helper method that does the actual split, when needed.
+   */
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> doSplit(
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
+
+  int const limit_;
+};
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr>
+DepthLimitSplitStrategy<PointT>::split(
+    int split_depth,
+    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+
+  if (split_depth < limit_) {
+    return this->doSplit(point_cloud);
+  } else {
+    return std::vector<typename pcl::PointCloud<PointT>::Ptr>();
+  }
+}
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr>
+DepthLimitSplitStrategy<PointT>::doSplit(
+    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+  typedef pcl::PointCloud<PointT> PointCloud;
+  typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
+  // Compute PCA for the input cloud
+  pcl::PCA<PointT> pca;
+  pca.setInputCloud(point_cloud);
+  Eigen::Vector3f eigenvalues = pca.getEigenValues();
+  Eigen::Matrix3f eigenvectors = pca.getEigenVectors();
+
+  Eigen::Vector3d main_pca_axis = eigenvectors.col(0).cast<double>();
+
+  // Compute the centroid
+  Eigen::Vector4d centroid;
+  pcl::compute3DCentroid(*point_cloud, centroid);
+
+  /// The plane equation
+  double d = (-1) * (
+      centroid[0] * main_pca_axis[0] +
+      centroid[1] * main_pca_axis[1] +
+      centroid[2] * main_pca_axis[2]
+  );
+
+  // Prepare the two parts.
+  std::vector<PointCloudPtr> ret;
+  ret.push_back(PointCloudPtr(new pcl::PointCloud<PointT>()));
+  ret.push_back(PointCloudPtr(new pcl::PointCloud<PointT>()));
+  PointCloud& first = *ret[0];
+  PointCloud& second = *ret[1];
+
+  // Now divide the input cloud into two clusters based on the splitting plane
+  size_t const sz = point_cloud->size();
+  for (size_t i = 0; i < sz; ++i) {
+    // Boost the precision of the points we are dealing with to make the
+    // calculation more precise.
+    PointT const& original_point = (*point_cloud)[i];
+    Eigen::Vector3f const vector_point = original_point.getVector3fMap();
+    Eigen::Vector3d const point = vector_point.cast<double>();
+    // Decide on which side of the plane the current point is and add it to the
+    // appropriate partition.
+    if (point.dot(main_pca_axis) + d < 0.) {
+      first.push_back(original_point);
+    } else {
+      second.push_back(original_point);
+    }
+  }
+
+  // Return the parts in a vector, as expected by the interface...
+  return ret;
+}
 
 /**
  * An approximator implementation that will generate an approximation by
