@@ -138,7 +138,9 @@ public:
    * using the given approximator instance.
    */
   SplitObjectApproximator(boost::shared_ptr<ObjectApproximator<PointT> > approx)
-      : approximator_(approx) {}
+      : approximator_(approx),
+        // TODO Allow for split strategy injection
+        splitter_(new DepthLimitSplitStrategy<PointT>(1)) {}
   /**
    * `ObjectApproximator` interface method.
    */
@@ -146,18 +148,13 @@ public:
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 private:
   /**
-   * Splits the given point_cloud into two parts and places them in the
-   * ``first`` and ``second`` PointCloud references.
-   */
-  void splitCloud(
-      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
-      pcl::PointCloud<PointT>& first,
-      pcl::PointCloud<PointT>& second);
-
-  /**
    * An `ObjectApproximator` used to generate approximations for object parts.
    */
   boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
+  /**
+   * The strategy to be used for splitting point clouds.
+   */
+  boost::shared_ptr<SplitStrategy<PointT> > splitter_;
 };
 
 template<class PointT>
@@ -180,11 +177,12 @@ boost::shared_ptr<CompositeModel> SplitObjectApproximator<PointT>::approximate(
     // For now we fix the number of split iterations.
     if (depth == 0) {
       // The approximation should be improved. Try doing it for the split clouds
-      PointCloudPtr first(new pcl::PointCloud<PointT>());
-      PointCloudPtr second(new pcl::PointCloud<PointT>());
-      splitCloud(current_cloud, *first, *second);
-      queue.push_back(std::make_pair(depth + 1, first));
-      queue.push_back(std::make_pair(depth + 1, second));
+      std::vector<PointCloudPtr> const splits = splitter_->split(depth, current_cloud);
+      // Add each new split section into the queue as children of the current
+      // node.
+      for (size_t i = 0; i < splits.size(); ++i) {
+        queue.push_back(std::make_pair(depth + 1, splits[i]));
+      }
     } else {
       // Keep the approximation
       approx->addModel(model);
@@ -192,48 +190,6 @@ boost::shared_ptr<CompositeModel> SplitObjectApproximator<PointT>::approximate(
   }
 
   return approx;
-}
-
-template<class PointT>
-void SplitObjectApproximator<PointT>::splitCloud(
-    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
-    pcl::PointCloud<PointT>& first,
-    pcl::PointCloud<PointT>& second) {
-  // Compute PCA for the input cloud
-  pcl::PCA<PointT> pca;
-  pca.setInputCloud(point_cloud);
-  Eigen::Vector3f eigenvalues = pca.getEigenValues();
-  Eigen::Matrix3f eigenvectors = pca.getEigenVectors();
-
-  Eigen::Vector3d main_pca_axis = eigenvectors.col(0).cast<double>();
-
-  // Compute the centroid
-  Eigen::Vector4d centroid;
-  pcl::compute3DCentroid(*point_cloud, centroid);
-
-  /// The plane equation
-  double d = (-1) * (
-      centroid[0] * main_pca_axis[0] +
-      centroid[1] * main_pca_axis[1] +
-      centroid[2] * main_pca_axis[2]
-  );
-
-  // Now divide the input cloud into two clusters based on the splitting plane
-  size_t const sz = point_cloud->size();
-  for (size_t i = 0; i < sz; ++i) {
-    // Boost the precision of the points we are dealing with to make the
-    // calculation more precise.
-    PointT const& original_point = (*point_cloud)[i];
-    Eigen::Vector3f const vector_point = original_point.getVector3fMap();
-    Eigen::Vector3d const point = vector_point.cast<double>();
-    // Decide on which side of the plane the current point is and add it to the
-    // appropriate partition.
-    if (point.dot(main_pca_axis) + d < 0.) {
-      first.push_back(original_point);
-    } else {
-      second.push_back(original_point);
-    }
-  }
 }
 
 }  // namespace lepp
