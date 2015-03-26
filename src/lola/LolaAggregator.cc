@@ -176,26 +176,34 @@ RobotAggregator::RobotAggregator(RobotService& service, int freq)
   diff_.set_deleted_callback(boost::bind(&RobotAggregator::del_cb_, this, _1));
 }
 void RobotAggregator::new_cb_(ObjectModel& model) {
-  // Assign an ID to each part of the new model.
   std::vector<ObjectModel*> primitives(getPrimitives(model));
   size_t const sz = primitives.size();
   std::vector<int>& ids = robot_ids_[model.id()];
+  // First, assign an ID to the entire model.
+  int const model_id = nextId();
+  ids.push_back(model_id);
+  // Now, create each part, assigning an ID to each of them.
   for (size_t i = 0; i < sz; ++i) {
     // Assign it a new ID
     int const id = nextId();
     ids.push_back(id);
     // ...and send a message to the robot.
-    sendNew(*primitives[i], id);
+    if (i == 0) {
+      // When creating the first part, we implicitly also create the parent model
+      sendNew(*primitives[i], model_id, id);
+    } else {
+      // The other parts are considered modifications of the parent...
+      sendModify(*primitives[i], model_id, id);
+    }
   }
 }
 
 void RobotAggregator::del_cb_(int obj_id) {
-  // Delete all parts of the deleted object.
+  // Delete the entire model with a single message
   {
     std::vector<int>& ids = robot_ids_[obj_id];
-    for (size_t i = 0; i < ids.size(); ++i) {
-      sendDelete(ids[i]);
-    }
+    // The first ID is always the ID of the object itself.
+    sendDelete(ids[0]);
   }
   // Remove it from the map too.
   robot_ids_.erase(obj_id);
@@ -205,20 +213,24 @@ void RobotAggregator::mod_cb_(ObjectModel& model) {
   std::vector<ObjectModel*> primitives(getPrimitives(model));
   size_t const new_size = primitives.size();
   std::vector<int>& ids = robot_ids_[model.id()];
-  size_t const old_size = ids.size();
+  // The ids list includes the ID of the object itself (at index 0), not only
+  // the primitives.
+  // There always need to be at least two IDs in the vector (the model and at
+  // least on of its parts), therefore this will not underflow the `size_t`.
+  size_t const old_size = ids.size() - 1;
 
   if (new_size < old_size) {
     // Some parts need to be deleted.
     for (size_t i = 0; i < old_size - new_size; ++i) {
-      sendDelete(ids[old_size - i - 1]);
+      sendDeletePart(ids[0], ids[old_size - i - 1]);
       ids.pop_back();
     }
   }
 
   // Now we modify what we have left from before
   size_t const sz = ids.size();
-  for (size_t i = 0; i < sz; ++i) {
-    sendModify(*primitives[i], ids[i]);
+  for (size_t i = 1; i < sz; ++i) {
+    sendModify(*primitives[i - 1], ids[0], ids[i]);
   }
 
   // And finally add new ones, if necessary
@@ -226,7 +238,9 @@ void RobotAggregator::mod_cb_(ObjectModel& model) {
     for (size_t i = 0; i < new_size - old_size; ++i) {
       int const id = nextId();
       ids.push_back(id);
-      sendNew(*primitives[old_size + i], id);
+      // New parts are modifications of the parent; the ID of the entire model
+      // is always the first ID in the `ids` vector.
+      sendModify(*primitives[old_size + i], ids[0], id);
     }
   }
 }
@@ -237,14 +251,14 @@ std::vector<ObjectModel*> RobotAggregator::getPrimitives(ObjectModel& model) con
   return flattener.objs();
 }
 
-void RobotAggregator::sendNew(ObjectModel& new_model, int id) {
+void RobotAggregator::sendNew(ObjectModel& new_model, int model_id, int part_id) {
   CoefsVisitor coefs;
   new_model.accept(coefs);
   VisionMessage msg = VisionMessage::SetMessage(
-      coefs.type_id(), id, coefs.radius(), coefs.coefs());
+      coefs.type_id(), model_id, part_id, coefs.radius(), coefs.coefs());
   std::cerr << "RobotAggregator: Creating new primitive ["
             << "type = " << coefs.type_id()
-            << "; id = " << id << std::endl;
+            << "; id = " << part_id << std::endl;
   service_.sendMessage(msg);
 }
 
@@ -255,13 +269,20 @@ void RobotAggregator::sendDelete(int id) {
   service_.sendMessage(del);
 }
 
-void RobotAggregator::sendModify(ObjectModel& model, int id) {
+void RobotAggregator::sendDeletePart(int model_id, int part_id) {
+  std::cerr << "RobotAggregator: Deleting a primitive id = "
+            << part_id << std::endl;
+  VisionMessage del = VisionMessage::DeletePartMessage(model_id, part_id);
+  service_.sendMessage(del);
+}
+
+void RobotAggregator::sendModify(ObjectModel& model, int model_id, int part_id) {
   CoefsVisitor coefs;
   model.accept(coefs);
   VisionMessage msg = VisionMessage::ModifyMessage(
-      coefs.type_id(), id, coefs.radius(), coefs.coefs());
+      coefs.type_id(), model_id, part_id, coefs.radius(), coefs.coefs());
   std::cerr << "RobotAggregator: Modifying existing primitive ["
             << "type = " << coefs.type_id()
-            << "; id = " << id << std::endl;
+            << "; id = " << part_id << std::endl;
   service_.sendMessage(msg);
 }
