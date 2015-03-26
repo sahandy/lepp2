@@ -61,7 +61,7 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
   }
   {
     boost::shared_ptr<PointFilter<PointT> > filter(
-        new TruncateFilter<PointT>(2));
+        new TruncateFilter<PointT>(2)); // STEP SIZE --> 1 CM
     source->addFilter(filter);
   }
 

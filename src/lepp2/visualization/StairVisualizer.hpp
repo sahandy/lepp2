@@ -34,10 +34,11 @@ public:
   virtual void notifyNewFrame(
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& pointCloud) {
-    if (is_first_cloud) {
-      pcl_visualizer_->addPointCloud(pointCloud, "TOTALPC");
-      pcl_visualizer_->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "TOTALPC");
-      is_first_cloud = false;
+
+	  if (is_first_cloud) {
+		  pcl_visualizer_->addPointCloud(pointCloud, "TOTALPC");
+		  pcl_visualizer_->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "TOTALPC");
+		  is_first_cloud = false;
     }
     else
       pcl_visualizer_->updatePointCloud(pointCloud, "TOTALPC");
@@ -62,6 +63,7 @@ private:
 template<class PointT>
 void StairVisualizer<PointT>::updateStairs(std::vector<typename pcl::PointCloud<PointT>::ConstPtr> cloud_stairs) {
 
+
     typename pcl::PointCloud<PointT>::Ptr single_cloud(new pcl::PointCloud<PointT>());
     size_t const sz = cloud_stairs.size();
     for(size_t i=0; i<sz; ++i) {
@@ -80,6 +82,8 @@ void StairVisualizer<PointT>::updateStairs(std::vector<typename pcl::PointCloud<
       } else
         pcl_visualizer_->updatePointCloud(single_cloud, single_color, "STAIRS");
     }
+
+    pcl_visualizer_->spinOnce(1);
 }
 
 } // namespace lepp
