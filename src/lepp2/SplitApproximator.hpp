@@ -175,11 +175,11 @@ boost::shared_ptr<CompositeModel> SplitObjectApproximator<PointT>::approximate(
     ObjectModelPtr model = approximator_->approximate(current_cloud);
     // TODO Decide whether the model fits well enough for the current cloud.
     // For now we fix the number of split iterations.
-    if (depth == 0) {
-      // The approximation should be improved. Try doing it for the split clouds
-      std::vector<PointCloudPtr> const splits = splitter_->split(depth, current_cloud);
-      // Add each new split section into the queue as children of the current
-      // node.
+    // The approximation should be improved. Try doing it for the split clouds
+    std::vector<PointCloudPtr> const splits = splitter_->split(depth, current_cloud);
+    // Add each new split section into the queue as children of the current
+    // node.
+    if (splits.size() != 0) {
       for (size_t i = 0; i < splits.size(); ++i) {
         queue.push_back(std::make_pair(depth + 1, splits[i]));
       }
