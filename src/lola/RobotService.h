@@ -69,11 +69,25 @@ std::ostream& operator<<(std::ostream& out, VisionMessage const& msg);
 class RobotService {
 public:
   /**
-   * Creates a new `RobotService` instance that will try to send messages to a
-   * robot on the given remote address (host name, port combination).
+   * Creates a new `RobotService` instance that will try to send messages
+   * to a robot on the given remote address (host name, port combination).
+   *
+   * No delay between subsequent messages is set.
    */
   RobotService(std::string const& remote, int port)
-      : remote_(remote), port_(port), socket_(io_service_) {}
+      : remote_(remote), port_(port), socket_(io_service_),
+        message_timeout_(0) {}
+
+  /**
+   * Creates a new `RobotService` instance that will try to send messages
+   * to a robot on the given remote address (host name, port combination).
+   *
+   * The delay between each subsequent sent message is set by the `delay`
+   * parameter.
+   */
+  RobotService(std::string const& remote, int port, int delay)
+      : remote_(remote), port_(port), socket_(io_service_),
+        message_timeout_(delay) {}
   /**
    * Starts up the service, initiating a connection to the robot.
    *
@@ -104,6 +118,20 @@ private:
    * The socket that is connected to the remote robot endpoint.
    */
   boost::asio::ip::tcp::socket socket_;
+
+  /**
+   * A number of milliseconds that the service waits between subsequent
+   * messages that it sends to the robot.
+   */
+  boost::posix_time::milliseconds message_timeout_;
+
+  /**
+   * A helper function that performs the send of the message and then waits
+   * the predefined amount of time before returning. This way, the wait blocks
+   * the (io_service) thread and causes the next message that should be sent
+   * to be delayed the necessary amount of time.
+   */
+  void inner_send(VisionMessage const& msg);
 };
 
 #endif

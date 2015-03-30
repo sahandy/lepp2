@@ -164,7 +164,7 @@ int main(int argc, char* argv[]) {
   smooth_decorator->attachObstacleAggregator(lola);
   smooth_decorator->attachObstacleAggregator(visualizer);
 
-  RobotService robot_service("127.0.0.1", 1337);
+  RobotService robot_service("127.0.0.1", 1337, 10);
   robot_service.start();
   boost::shared_ptr<RobotAggregator> robot(new RobotAggregator(robot_service, 10));
   smooth_decorator->attachObstacleAggregator(robot);

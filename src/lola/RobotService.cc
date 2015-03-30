@@ -124,12 +124,26 @@ void RobotService::start() {
   boost::thread(boost::bind(service_thread, &io_service_));
 }
 
+void RobotService::inner_send(VisionMessage const& next_message) {
+  char const* buf = (char const*)&next_message;
+  std::cerr << "RobotService: Sending a queued message: "
+            << "msg == " << next_message
+            << std::endl;
+  // Synchronously send the message, i.e. block until the send is complete.
+  socket_.send(
+      boost::asio::buffer(buf, sizeof(VisionMessage)));
+  // After each sent message, we want to wait a pre-defined amount of time
+  // before sending the next one.
+  // This is because we do not want to overwhelm the robot with a large
+  // number of messages all sent in the same time.
+  boost::this_thread::sleep(message_timeout_);
+}
+
 void RobotService::sendMessage(VisionMessage const& msg) {
-  char const* buf = (char const*)&msg;
-  std::cerr << "RobotService: Queuing a send of " << (sizeof(VisionMessage))
-            << " bytes." << std::endl;
-  std::cerr << "RobotService: msg = " << msg << std::endl;
-  socket_.async_send(
-      boost::asio::buffer(buf, sizeof(VisionMessage)),
-      write_handler);
+  // Just queue another message to be sent by the io_service thread.
+  // Since `inner_send` makes sure to wait after it's finished sending
+  // each message (i.e. the io_service thread is blocked), the queued
+  // messages will all be sent with a preset time delay between subsequent
+  // messages.
+  io_service_.post(boost::bind(&RobotService::inner_send, this, msg));
 }
