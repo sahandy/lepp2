@@ -19,6 +19,11 @@ struct Coordinate {
   Coordinate(Eigen::Vector3f const& vec) : x(vec(0)), y(vec(1)), z(vec(2)) {}
   Coordinate(Eigen::Vector3d const& vec) : x(vec(0)), y(vec(1)), z(vec(2)) {}
   Coordinate(pcl::PointXYZ const& pt) : x(pt.x), y(pt.y), z(pt.z) {}
+
+  /**
+   * Returns the squared norm of the vector.
+   */
+  double square_norm() const { return x*x + y*y + z*z; }
 };
 
 inline Coordinate operator-(Coordinate const& obj) {
