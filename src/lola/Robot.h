@@ -14,6 +14,41 @@
  */
 class Robot {
 public:
+  // TODO Include the fold the RobotService into the facade too.
+  /**
+   * Create a new `Robot` instance that will wrap the given `pose_service`
+   * instance.
+   *
+   * The (squared) radius of the inner zone is set to a default value.
+   */
+  Robot(PoseService& pose_service)
+      : pose_service_(pose_service),
+        inner_zone_square_radius_(1.44) {}
+  /**
+   * Create a new `Robot` instance that will wrap the given `pose_service`
+   * instance.
+   *
+   * The (squared) radius of the inner zone is set to
+   * `inner_zone_square_radius_`.
+   */
+  Robot(PoseService& pose_service, int inner_zone_square_radius)
+      : pose_service_(pose_service),
+        inner_zone_square_radius_(inner_zone_square_radius) {}
+
+  /**
+   * Checks whether the given model is currently within the boundary of
+   * the robot (i.e. the "inner zone").
+   */
+  bool isInRobotBoundary(lepp::ObjectModel const& model) const;
+
+  double inner_zone_square_radius() const { return inner_zone_square_radius_; }
+private:
+  PoseService& pose_service_;
+  /**
+   * The (square of the) radius of the area around the robot that is considered
+   * its "inner" zone.
+   */
+  double const inner_zone_square_radius_;
 };
 
 #endif
