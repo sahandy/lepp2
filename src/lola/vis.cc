@@ -31,7 +31,7 @@ using namespace lepp;
  * Prints out the expected CLI usage of the program.
  */
 void PrintUsage() {
-  std::cout << "usage: detector [--pcd file | --oni file | --stream] [--live]"
+  std::cout << "usage: lola [--pcd file | --oni file | --stream] [--live]"
       << std::endl;
   std::cout << "--pcd    : " << "read the input from a .pcd file" << std::endl;
   std::cout << "--oni    : " << "read the input from an .oni file" << std::endl;
