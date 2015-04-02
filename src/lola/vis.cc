@@ -46,7 +46,9 @@ void PrintUsage() {
  */
 template<class PointT>
 boost::shared_ptr<FilteredVideoSource<PointT> >
-buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
+buildFilteredSource(
+    boost::shared_ptr<VideoSource<PointT> > raw, bool live,
+    boost::shared_ptr<PoseService> service) {
   // Wrap the given raw source.
   boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
       new SimpleFilteredVideoSource<SimplePoint>(raw));
@@ -63,7 +65,6 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
   } else {
     // TODO The reference to the service should eventually be obtained from some
     //      sort of IOC container.
-    boost::shared_ptr<PoseService> service(new PoseService("127.0.0.1", 5000));
     service->start();
     boost::shared_ptr<PointFilter<SimplePoint> > filter(
         new RobotOdoTransformer<SimplePoint>(service));
@@ -135,8 +136,9 @@ int main(int argc, char* argv[]) {
   }
   bool live = isLive(argc, argv);
   // Wrap the raw source in a filter
+  boost::shared_ptr<PoseService> pose_service(new PoseService("127.0.0.1", 5000));
   boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
-      buildFilteredSource(raw_source, live));
+      buildFilteredSource(raw_source, live, pose_service));
   // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<SimplePoint> > detector(
       new BaseObstacleDetector<SimplePoint>());
@@ -157,14 +159,15 @@ int main(int argc, char* argv[]) {
   detector->attachObstacleAggregator(smooth_decorator);
   // Now attach various aggregators that are only interested in postprocessed
   // obstacles.
-  boost::shared_ptr<LolaAggregator> lola(
+  boost::shared_ptr<LolaAggregator> lola_viewer(
       new LolaAggregator("127.0.0.1", 53250));
-  smooth_decorator->attachObstacleAggregator(lola);
+  smooth_decorator->attachObstacleAggregator(lola_viewer);
   smooth_decorator->attachObstacleAggregator(visualizer);
 
   AsyncRobotService robot_service("127.0.0.1", 1337, 10);
   robot_service.start();
-  boost::shared_ptr<RobotAggregator> robot(new RobotAggregator(robot_service, 10));
+  Robot lola(*pose_service, 1.44);
+  boost::shared_ptr<RobotAggregator> robot(new RobotAggregator(robot_service, 30, lola));
   smooth_decorator->attachObstacleAggregator(robot);
 
   // Starts capturing new frames and forwarding them to attached observers.

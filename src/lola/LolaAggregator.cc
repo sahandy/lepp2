@@ -168,13 +168,15 @@ private:
 };
 }  // namespace <anonymous>
 
-RobotAggregator::RobotAggregator(RobotService& service, int freq)
-    : service_(service), diff_(freq), next_id_(0) {
+RobotAggregator::RobotAggregator(RobotService& service, int freq, Robot& robot)
+    : service_(service), diff_(freq), next_id_(0),
+      robot_(robot) {
   // Set up the callbacks that handle the particular cases.
   diff_.set_new_callback(boost::bind(&RobotAggregator::new_cb_, this, _1));
   diff_.set_modified_callback(boost::bind(&RobotAggregator::mod_cb_, this, _1));
   diff_.set_deleted_callback(boost::bind(&RobotAggregator::del_cb_, this, _1));
 }
+
 void RobotAggregator::new_cb_(ObjectModel& model) {
   std::vector<ObjectModel*> primitives(getPrimitives(model));
   size_t const sz = primitives.size();
@@ -199,6 +201,13 @@ void RobotAggregator::new_cb_(ObjectModel& model) {
 }
 
 bool RobotAggregator::del_cb_(ObjectModel& model) {
+  // Disable any deletions of objects that are too close to the robot.
+  // We don't want to confuse it by sending it delete commands
+  // for objects that it might be in the process of stepping over.
+  if (robot_.isInRobotBoundary(model)) {
+    return false;
+  }
+
   int const obj_id = model.id();
   {
     // Delete the entire model with a single message
@@ -216,6 +225,12 @@ bool RobotAggregator::del_cb_(ObjectModel& model) {
 }
 
 void RobotAggregator::mod_cb_(ObjectModel& model) {
+  // Disable any modifications to models that are too close to the
+  // robot.
+  if (robot_.isInRobotBoundary(model)) {
+    return;
+  }
+
   std::vector<ObjectModel*> primitives(getPrimitives(model));
   size_t const new_size = primitives.size();
   std::vector<int>& ids = robot_ids_[model.id()];
