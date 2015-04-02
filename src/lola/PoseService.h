@@ -5,6 +5,20 @@
 #include <boost/array.hpp>
 using boost::asio::ip::udp;
 
+/**
+ * A struct wrapping the parameters LOLA-provided kinematics parameters that are
+ * used to construct the transformation matrices between the camera frame and
+ * the world coordinate system as LOLA knows it.
+ */
+struct LolaKinematicsParams {
+  double t_wr_cl[3];
+  double R_wr_cl[3][3];
+  double t_stance_odo[3];
+  double phi_z_odo;
+  double stance;
+  int stamp;
+};
+
 /*!
   Robot pose data
 
@@ -157,6 +171,12 @@ public:
    * thread safe.
    */
   HR_Pose getCurrentPose() const;
+
+  /**
+   * Returns the parameters relevant for coordinate system
+   * transformations, extracted from the currently known robot pose.
+   */
+  LolaKinematicsParams getParams() const;
 private:
   /**
    * Internal helper method. The callback that is passed to the async receive.

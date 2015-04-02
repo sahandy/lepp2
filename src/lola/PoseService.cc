@@ -4,6 +4,38 @@
 #include <cstring>
 #include <iostream>
 
+namespace {
+
+/**
+ * Puts a rotation matrix (around the z-axis) for the given angle in the given
+ * matrix `matrix`.
+ * It is assumed that the given matrix points to a matrix of dimensions 3x3.
+ */
+void rotationmatrix(double angle, double matrix[][3]) {
+  double s = sin(angle);
+  double c = cos(angle);
+
+  matrix[0][0] = c; matrix[0][1] = -s; matrix[0][2] = 0;
+  matrix[1][0] = s; matrix[1][1] = c; matrix[1][2] = 0;
+  matrix[2][0] = 0; matrix[2][1] = 0; matrix[2][2] = 1;
+}
+
+/**
+ * Transposes the given matrix `matrix` and puts the transpose result into the
+ * given `transpose` matrix.
+ *
+ * The matrices are assumed to be 3x3.
+ */
+void transpose(double matrix[][3], double transpose[][3]) {
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      transpose[j][i] = matrix[i][j];
+    }
+  }
+}
+
+} // namespace anonymous
+
 void PoseService::read_handler(
     boost::system::error_code const& ec,
     std::size_t bytes_transferred) {
@@ -72,4 +104,23 @@ HR_Pose PoseService::getCurrentPose() const {
     HR_Pose pose = {0};
     return pose;
   }
+}
+
+LolaKinematicsParams PoseService::getParams() const {
+  HR_Pose pose = getCurrentPose();
+  // Now convert the current raw pose to parameters that are of relevance to the
+  // transformation.
+  LolaKinematicsParams params;
+  for (int i = 0; i < 3; ++i) {
+    params.t_wr_cl[i] = pose.t_wr_cl[i];
+    params.t_stance_odo[i] = pose.t_stance_odo[i];
+    for (int j = 0; j < 3; ++j) {
+      params.R_wr_cl[i][j] = pose.R_wr_cl[3*i + j];
+    }
+  }
+  params.phi_z_odo = pose.phi_z_odo;
+  params.stance = pose.stance;
+  params.stamp = pose.stamp;
+
+  return params;
 }

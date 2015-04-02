@@ -13,24 +13,8 @@
 
 namespace {
 
-/**
- * A struct wrapping the parameters LOLA-provided kinematics parameters that are
- * used to construct the transformation matrices between the camera frame and
- * the world coordinate system as LOLA knows it.
- */
-struct LolaKinematicsParams {
-  double t_wr_cl[3];
-  double R_wr_cl[3][3];
-  double t_stance_odo[3];
-  double phi_z_odo;
-  double stance;
-  int frame_num;
-  int stamp;
-};
-
 std::ostream& operator<<(std::ostream& out, LolaKinematicsParams const& param) {
-  out << "Frame #" << param.frame_num << std::endl
-      << "stamp #" << param.stamp << std::endl
+  out << "stamp #" << param.stamp << std::endl
       << "phi_z_odo = " << param.phi_z_odo << std::endl
       << "stance = " << param.stance << std::endl;
   out << "t_wr_cl = ";
@@ -269,7 +253,6 @@ LolaKinematicsParams RobotOdoTransformer<PointT>::getNextParams() {
   }
   params.phi_z_odo = pose.phi_z_odo;
   params.stance = pose.stance;
-  params.frame_num = this->current_frame_;
   params.stamp = pose.stamp;
 
   return params;
