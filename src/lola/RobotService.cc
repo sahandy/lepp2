@@ -7,9 +7,9 @@ namespace {
    */
   void connect_handler(boost::system::error_code const& error) {
     if (!error) {
-      std::cerr << "RobotService: Connected to the robot." << std::endl;
+      std::cerr << "AsyncRobotService: Connected to the robot." << std::endl;
     } else {
-      std::cerr << "RobotService: Failed to connect to the robot" << std::endl;
+      std::cerr << "AsyncRobotService: Failed to connect to the robot" << std::endl;
     }
   }
 
@@ -24,7 +24,7 @@ namespace {
     // async operations are queued).
     boost::asio::io_service::work work(*io_service);
     io_service->run();
-    std::cout << "RobotService: Exiting service thread..." << std::endl;
+    std::cout << "AsyncRobotService: Exiting service thread..." << std::endl;
   }
 
   /**
@@ -33,10 +33,10 @@ namespace {
   void write_handler(boost::system::error_code const& error,
                std::size_t sent) {
     if (!error) {
-      std::cerr << "RobotService: Send complete. "
+      std::cerr << "AsyncRobotService: Send complete. "
                 << "Sent " << sent << " bytes." << std::endl;
     } else {
-      std::cerr << "RobotService: Error sending message." << std::endl;
+      std::cerr << "AsyncRobotService: Error sending message." << std::endl;
     }
   }
 }
@@ -113,20 +113,20 @@ std::ostream& operator<<(std::ostream& out, VisionMessage const& msg) {
   return out;
 }
 
-void RobotService::start() {
+void AsyncRobotService::start() {
   // Start it up...
   boost::asio::ip::tcp::endpoint endpoint(
     boost::asio::ip::address::from_string(remote_), port_);
-  std::cerr << "RobotService: Initiating a connection asynchronously..."
+  std::cerr << "AsyncRobotService: Initiating a connection asynchronously..."
             << std::endl;
   socket_.async_connect(endpoint, connect_handler);
   // Start the service thread in the background...
   boost::thread(boost::bind(service_thread, &io_service_));
 }
 
-void RobotService::inner_send(VisionMessage const& next_message) {
+void AsyncRobotService::inner_send(VisionMessage const& next_message) {
   char const* buf = (char const*)&next_message;
-  std::cerr << "RobotService: Sending a queued message: "
+  std::cerr << "AsyncRobotService: Sending a queued message: "
             << "msg == " << next_message
             << std::endl;
   // Synchronously send the message, i.e. block until the send is complete.
@@ -139,11 +139,11 @@ void RobotService::inner_send(VisionMessage const& next_message) {
   boost::this_thread::sleep(message_timeout_);
 }
 
-void RobotService::sendMessage(VisionMessage const& msg) {
+void AsyncRobotService::sendMessage(VisionMessage const& msg) {
   // Just queue another message to be sent by the io_service thread.
   // Since `inner_send` makes sure to wait after it's finished sending
   // each message (i.e. the io_service thread is blocked), the queued
   // messages will all be sent with a preset time delay between subsequent
   // messages.
-  io_service_.post(boost::bind(&RobotService::inner_send, this, msg));
+  io_service_.post(boost::bind(&AsyncRobotService::inner_send, this, msg));
 }
