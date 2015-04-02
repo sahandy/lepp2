@@ -59,9 +59,7 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
     source->addFilter(filter);
   }
   if (!live) {
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new FileOdoTransformer<SimplePoint>("in.log"));
-    source->addFilter(filter);
+    // pass
   } else {
     // TODO The reference to the service should eventually be obtained from some
     //      sort of IOC container.
