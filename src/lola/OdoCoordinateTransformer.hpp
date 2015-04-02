@@ -219,22 +219,22 @@ bool OdoCoordinateTransformer<PointT>::apply(PointT& original) {
   }
   if (all) return false;
   // world_point = r_odo_cam + (A_odo_cam * original)
-  PointT world_point = original;
-  world_point.x = (transform_params_.r_odo_cam[0])
+  PointT odo_point = original;
+  odo_point.x = (transform_params_.r_odo_cam[0])
                                + transform_params_.A_odo_cam[0][0] * original.x
                                + transform_params_.A_odo_cam[0][1] * original.y
                                + transform_params_.A_odo_cam[0][2] * original.z;
-  world_point.y = (transform_params_.r_odo_cam[1])
+  odo_point.y = (transform_params_.r_odo_cam[1])
                                + transform_params_.A_odo_cam[1][0] * original.x
                                + transform_params_.A_odo_cam[1][1] * original.y
                                + transform_params_.A_odo_cam[1][2] * original.z;
-  world_point.z = (transform_params_.r_odo_cam[2])
+  odo_point.z = (transform_params_.r_odo_cam[2])
                                + transform_params_.A_odo_cam[2][0] * original.x
                                + transform_params_.A_odo_cam[2][1] * original.y
                                + transform_params_.A_odo_cam[2][2] * original.z;
 
   // Now replace the original with only the x, y, z components modified.
-  original = world_point;
+  original = odo_point;
   return true;
 }
 
