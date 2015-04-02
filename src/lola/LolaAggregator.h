@@ -86,7 +86,7 @@ private:
    * The function is passed as a callback to the underlying `DiffAggregator` for
    * when models are discovered to be deleted.
    */
-  void del_cb_(int obj_id);
+  bool del_cb_(ObjectModel& model);
   /**
    * The function is passed as a callback to the underlying `DiffAggregator` for
    * when a model has been modified.

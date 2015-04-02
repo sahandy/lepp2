@@ -198,15 +198,21 @@ void RobotAggregator::new_cb_(ObjectModel& model) {
   }
 }
 
-void RobotAggregator::del_cb_(int obj_id) {
-  // Delete the entire model with a single message
+bool RobotAggregator::del_cb_(ObjectModel& model) {
+  int const obj_id = model.id();
   {
+    // Delete the entire model with a single message
     std::vector<int>& ids = robot_ids_[obj_id];
     // The first ID is always the ID of the object itself.
     sendDelete(ids[0]);
+    // ...the reference to the vector is invalid after the erase
+    // so forget it before then by closing the scope to make sure
+    // no dangling pointer accesses occur.
   }
   // Remove it from the map too.
   robot_ids_.erase(obj_id);
+  // Signal the diff aggregator to definitely delete this object
+  return true;
 }
 
 void RobotAggregator::mod_cb_(ObjectModel& model) {
