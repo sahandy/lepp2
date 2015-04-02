@@ -106,6 +106,28 @@ HR_Pose PoseService::getCurrentPose() const {
   }
 }
 
+lepp::Coordinate PoseService::getRobotPosition() const {
+  LolaKinematicsParams params = getParams();
+
+  double rotation_matrix[3][3];
+  rotationmatrix(params.phi_z_odo, rotation_matrix);
+
+  // In pseudo-code (if matrix operations were supported):
+  // ret = transpose(rotation_matrix) * (t_stance_odo)
+  double transposed_matrix[3][3];
+  transpose(rotation_matrix, transposed_matrix);
+  std::vector<double> ret(3);
+  for (int i = 0; i < 3; ++i) {
+    ret[i] = 0;
+    for (int j = 0; j < 3; ++j) {
+      ret[i] +=
+          transposed_matrix[i][j] * (params.t_stance_odo[j]);
+    }
+  }
+
+  return lepp::Coordinate(ret[0], ret[1], ret[2]);
+}
+
 LolaKinematicsParams PoseService::getParams() const {
   HR_Pose pose = getCurrentPose();
   // Now convert the current raw pose to parameters that are of relevance to the

@@ -3,6 +3,8 @@
 
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
+
+#include "lepp2/models/Coordinate.h"
 using boost::asio::ip::udp;
 
 /**
@@ -172,6 +174,10 @@ public:
    */
   HR_Pose getCurrentPose() const;
 
+  /**
+   * Returns the "World" origin in ODO coordinate system.
+   */
+  lepp::Coordinate getRobotPosition() const;
   /**
    * Returns the parameters relevant for coordinate system
    * transformations, extracted from the currently known robot pose.
