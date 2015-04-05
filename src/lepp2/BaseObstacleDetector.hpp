@@ -38,15 +38,6 @@ public:
    */
   void attachObstacleAggregator(
       boost::shared_ptr<ObstacleAggregator> aggregator);
-  /**
-   * Returns the point cloud that the detector is currently working with.
-   *
-   * NOTE: Needed only for the legacy code that relies of pulling the point
-   *       cloud from the detector, instead of getting it as a parameter.
-   */
-  virtual typename pcl::PointCloud<PointT>::ConstPtr getPointCloud() const {
-    return cloud_;
-  }
 
 protected:
   /// Some convenience typedefs
