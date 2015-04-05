@@ -130,8 +130,12 @@ void AsyncRobotService::inner_send(VisionMessage const& next_message) {
             << "msg == " << next_message
             << std::endl;
   // Synchronously send the message, i.e. block until the send is complete.
-  socket_.send(
-      boost::asio::buffer(buf, sizeof(VisionMessage)));
+  try {
+    socket_.send(
+        boost::asio::buffer(buf, sizeof(VisionMessage)));
+  } catch (...) {
+    std::cerr << "AsyncRobotService: Error sending message." << std::endl;
+  }
   // After each sent message, we want to wait a pre-defined amount of time
   // before sending the next one.
   // This is because we do not want to overwhelm the robot with a large
