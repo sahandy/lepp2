@@ -19,8 +19,49 @@ using namespace lepp;
 
 #include "lepp2/debug/timer.hpp"
 
+/**
+ * A base class for obstacle detectors.
+ *
+ * Provides the ability for `ObstacleAggregator`s to attach to it and a
+ * convenience protected method that sends a notification to all of them with a
+ * given list of models.
+ */
+class IObstacleDetector {
+public:
+  /**
+   * Attaches a new ObstacleAggregator, which will be notified of newly detected
+   * obstacles by this detector.
+   */
+  void attachObstacleAggregator(
+      boost::shared_ptr<ObstacleAggregator> aggregator);
+
+protected:
+  /**
+   * Notifies any observers about newly detected obstacles.
+   */
+  void notifyObstacles(std::vector<ObjectModelPtr> const& models);
+
+private:
+  /**
+   * Tracks all attached ObstacleAggregators that wish to be notified of newly
+   * detected obstacles.
+   */
+  std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators_;
+};
+
+/**
+ * A basic implementation of an obstacle detector that detects obstacles from a
+ * `VideoSource`. In order to do so, it needs to be attached to a `VideoSource`
+ * instance (and therefore it implements the `VideoObserver` interface).
+ *
+ * Obstacles in each frame that the `VideoSource` gives to the detector are
+ * found by first performing segmentation of the given point cloud (using the
+ * given `BaseSegmenter` instance), followed by performing the approximation
+ * of each of them by the given `ObjectApproximator` instance.
+ */
 template<class PointT>
-class BaseObstacleDetector : public lepp::VideoObserver<PointT> {
+class BaseObstacleDetector : public lepp::VideoObserver<PointT>,
+                             public IObstacleDetector {
 public:
   BaseObstacleDetector();
   virtual ~BaseObstacleDetector() {}
@@ -32,31 +73,13 @@ public:
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 
-  /**
-   * Attaches a new ObstacleAggregator, which will be notified of newly detected
-   * obstacles by this detector.
-   */
-  void attachObstacleAggregator(
-      boost::shared_ptr<ObstacleAggregator> aggregator);
-
 protected:
   /// Some convenience typedefs
   typedef pcl::PointCloud<PointT> PointCloud;
   typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
 
-  /**
-   * Notifies any observers about newly detected obstacles.
-   */
-  void notifyObstacles(std::vector<ObjectModelPtr> const& models);
-
 private:
   typename pcl::PointCloud<PointT>::ConstPtr cloud_;
-
-  /**
-   * Tracks all attached ObstacleAggregators that wish to be notified of newly
-   * detected obstacles.
-   */
-  std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators;
 
   boost::shared_ptr<BaseSegmenter<PointT> > segmenter_;
   boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
@@ -109,18 +132,16 @@ void BaseObstacleDetector<PointT>::update() {
   notifyObstacles(models);
 }
 
-template<class PointT>
-void BaseObstacleDetector<PointT>::attachObstacleAggregator(
+void IObstacleDetector::attachObstacleAggregator(
     boost::shared_ptr<ObstacleAggregator> aggregator) {
-  aggregators.push_back(aggregator);
+  aggregators_.push_back(aggregator);
 }
 
-template<class PointT>
-void BaseObstacleDetector<PointT>::notifyObstacles(
-  std::vector<ObjectModelPtr> const& models) {
-  size_t sz = aggregators.size();
+void IObstacleDetector::notifyObstacles(
+    std::vector<ObjectModelPtr> const& models) {
+  size_t sz = aggregators_.size();
   for (size_t i = 0; i < sz; ++i) {
-    aggregators[i]->updateObstacles(models);
+    aggregators_[i]->updateObstacles(models);
   }
 }
 
