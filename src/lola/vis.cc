@@ -3,9 +3,14 @@
  * and visualizing their approximations.
  */
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <map>
 
 #include <pcl/io/openni2_grabber.h>
 #include <pcl/io/pcd_grabber.h>
+
+#include <boost/algorithm/string.hpp>
 
 #include "lepp2/BaseObstacleDetector.hpp"
 #include "lepp2/GrabberVideoSource.hpp"
@@ -31,8 +36,10 @@ using namespace lepp;
  * Prints out the expected CLI usage of the program.
  */
 void PrintUsage() {
-  std::cout << "usage: lola [--pcd file | --oni file | --stream] [--live]"
+  std::cout << "usage: lola --cfg <cfg-file> | ((--pcd <file> | --oni <file> | --stream) [--live]])"
       << std::endl;
+  std::cout << "--cfg    : " << "configure the vision subsytem by reading the "
+      << "given config file" << std::endl;
   std::cout << "--pcd    : " << "read the input from a .pcd file" << std::endl;
   std::cout << "--oni    : " << "read the input from an .oni file" << std::endl;
   std::cout << "--stream : " << "read the input from a live stream based on a"
@@ -345,11 +352,357 @@ private:
   boost::shared_ptr<BaseObstacleDetector<PointT> > base_detector_;
 };
 
+/**
+ * A `Context` implementation that reads the configuration from a config file
+ * (given as a parameter at construct time).
+ */
+template<class PointT>
+class FileConfigContext : public Context<PointT> {
+public:
+  /**
+   * Create a new `FileConfigContext` that will read its configuration from the
+   * given config file.
+   *
+   * If the file cannot be opened, there is an error parsing it, or one of the
+   * components is misconfigured, the constructor will throw.
+   */
+  FileConfigContext(std::string const& file_name)
+      : file_name_(file_name),
+        fin_(file_name.c_str()),
+        curr_line_(0) {
+    if (!fin_.is_open()) {
+      throw "Unable to open the config file";
+    }
+    // Now read in the whole file...
+    readConfigFile();
+
+    this->init();
+  }
+protected:
+  /// Implementations of initialization of various parts of the pipeline.
+  void initRawSource() {
+    expectLine("[VideoSource]");
+    std::string type = expectKey<std::string>("type");
+    if (type == "stream") {
+      this->raw_source_ = boost::shared_ptr<VideoSource<PointT> >(
+          new LiveStreamSource<PointT>());
+    } else if (type == "pcd") {
+      std::string file_path = expectKey<std::string>("file_path");
+      boost::shared_ptr<pcl::Grabber> interface(new pcl::PCDGrabber<PointT>(
+            file_path,
+            20.,
+            true));
+      this->raw_source_ = boost::shared_ptr<VideoSource<PointT> >(
+          new GeneralGrabberVideoSource<PointT>(interface));
+    } else if (type == "oni") {
+      std::string file_path = expectKey<std::string>("file_path");
+      boost::shared_ptr<pcl::Grabber> interface(new pcl::io::OpenNI2Grabber(
+            file_path,
+            pcl::io::OpenNI2Grabber::OpenNI_Default_Mode,
+            pcl::io::OpenNI2Grabber::OpenNI_Default_Mode));
+      this->raw_source_ = boost::shared_ptr<VideoSource<PointT> >(
+          new GeneralGrabberVideoSource<PointT>(interface));
+    } else {
+      throw "Invalid VideoSource configuration";
+    }
+  }
+
+  void initFilteredVideoSource() {
+    expectLine("[FilteredVideoSource]");
+    std::string type = expectKey<std::string>("type");
+
+    if (type == "simple") {
+      this->filtered_source_.reset(
+          new SimpleFilteredVideoSource<PointT>(this->raw_source_));
+    } else if (type == "prob") {
+      this->filtered_source_.reset(
+          new ProbFilteredVideoSource<PointT>(this->raw_source_));
+    } else if (type == "pt1") {
+      this->filtered_source_.reset(
+          new Pt1FilteredVideoSource<PointT>(this->raw_source_));
+    } else {
+      throw "Invalid FilteredVideoSource configuration";
+    }
+  }
+
+  void addFilters() {
+    while (nextLineMatches("[[FilteredVideoSource.filters]]")) {
+      this->filtered_source_->addFilter(getNextFilter());
+    }
+
+    returnToPreviousLine();
+  }
+
+  void initPoseService() {
+    expectLine("[PoseService]");
+    std::string ip = expectKey<std::string>("ip");
+    int port = expectKey<int>("port");
+
+    this->pose_service_.reset(new PoseService(ip, port));
+    this->pose_service_->start();
+  }
+
+  void initVisionService() {
+    expectLine("[RobotService]");
+    std::string ip = expectKey<std::string>("ip");
+    int port = expectKey<int>("port");
+    int delay = expectKey<int>("delay");
+
+    boost::shared_ptr<AsyncRobotService> async_robot_service(
+        new AsyncRobotService(ip, port, delay));
+    async_robot_service->start();
+    this->robot_service_ = async_robot_service;
+  }
+
+  void initDetector() {
+    // Prepare the base detector...
+    base_detector_.reset(new BaseObstacleDetector<PointT>());
+    this->source()->attachObserver(base_detector_);
+    // Smooth out the basic detector by applying a smooth detector to it
+    boost::shared_ptr<SmoothObstacleAggregator> smooth_detector(
+        new SmoothObstacleAggregator);
+    base_detector_->attachObstacleAggregator(smooth_detector);
+    // Now the detector that is exposed via the context is a smoothed-out
+    // base detector.
+    this->detector_ = smooth_detector;
+  }
+
+  void addAggregators() {
+    while (nextLineMatches("[[aggregators]]")) {
+      this->detector_->attachObstacleAggregator(getNextAggregator());
+    }
+
+    returnToPreviousLine();
+  }
+
+  void initVisualizer() {
+    // Factor out to a member ...
+    bool visualization = true;
+    if (visualization) {
+      this->visualizer_.reset(new ObstacleVisualizer<PointT>());
+      // Attach the visualizer to both the point cloud source...
+      this->source()->attachObserver(this->visualizer_);
+      // ...as well as to the obstacle detector
+      this->detector_->attachObstacleAggregator(this->visualizer_);
+    }
+  }
+private:
+  /// Helper functions for constructing parts of the pipeline.
+  /**
+   * A helper function that constructs the next `PointFilter` instance,
+   * as defined in the following lines of the config file.
+   * If the lines are invalid, an exception is thrown.
+   */
+  boost::shared_ptr<PointFilter<PointT> > getNextFilter() {
+    std::string const type = expectKey<std::string>("type");
+    if (type == "SensorCalibrationFilter") {
+      double a = expectKey<double>("a");
+      double b = expectKey<double>("b");
+      return boost::shared_ptr<PointFilter<PointT> >(
+          new SensorCalibrationFilter<PointT>(a, b));
+    } else if (type == "RobotOdoTransformer") {
+      return boost::shared_ptr<PointFilter<PointT> >(
+          new RobotOdoTransformer<PointT>(this->pose_service_));
+    } else if (type == "TruncateFilter") {
+      int decimals = expectKey<int>("decimal_points");
+      return boost::shared_ptr<PointFilter<PointT> >(
+          new TruncateFilter<PointT>(decimals));
+    } else {
+      std::cerr << "Unknown filter type `" << type << "`" << std::endl;
+      throw "Unknown filter type";
+    }
+  }
+
+  /**
+   * A helper function that constructs the next `ObstacleAggregator` instance,
+   * as defined in the following lines of the config file.
+   * If the lines are invalid, an exception is thrown.
+   */
+  boost::shared_ptr<ObstacleAggregator> getNextAggregator() {
+    std::string const type = expectKey<std::string>("type");
+    if (type == "LolaAggregator") {
+      std::string const ip = expectKey<std::string>("ip");
+      int const port = expectKey<int>("port");
+
+      return boost::shared_ptr<LolaAggregator>(
+          new LolaAggregator(ip, port));
+    } else if (type == "RobotAggregator") {
+      int const frame_rate = expectKey<int>("frame_rate");
+
+      return boost::shared_ptr<RobotAggregator>(
+          new RobotAggregator(*this->robot_service(), frame_rate, *this->robot()));
+    } else {
+      std::cerr << "Unknown aggregator type `" << type << "`" << std::endl;
+      throw "Unknown aggregator type";
+    }
+  }
+
+  /// Helper functions for parsing the config file
+  /**
+   * Reads in the entire config file and places the sanitized lines ito the
+   * `lines_` vector.
+   */
+  void readConfigFile() {
+    while (!fin_.eof()) {
+      lines_.push_back(readNextLine());
+    }
+  }
+
+  /**
+   * Reads the next valid line from the config file.
+   *
+   * The method will never return comments or lines with leading/trailing white
+   * space -- if such lines are found in the input file they are either
+   * discarded or stripped of the whitespace.
+   */
+  std::string readNextLine() {
+    std::string line;
+    while (std::getline(fin_, line)) {
+      boost::algorithm::trim(line);
+      // Ignore empty lines
+      if (line.length() == 0) continue;
+      // Ignore "comments"
+      if (line[0] == '#') continue;
+      // If nothing else is satisfied, we've got a valid line ...
+      break;
+    }
+
+    return line;
+  }
+
+  /**
+   * Moves the parser's cursor to the previous line.
+   */
+  void returnToPreviousLine() {
+    if (curr_line_ == 0) {
+      throw "Cannot go back further in the file";
+    }
+    --curr_line_;
+  }
+
+  /**
+   * Returns the next line from the one at which the parser is currently found.
+   * Advances the current position of the cursor.
+   */
+  std::string const& getNextLine() {
+    if (curr_line_ == lines_.size()) {
+      throw "Not enough lines in config file";
+    }
+
+    return lines_[curr_line_++];
+  }
+
+  /**
+   * Checks whether the next line matches the given string. The line is
+   * considered a match iff the entire string matches *exactly*.
+   *
+   * Advances the parser's cursor.
+   */
+  bool nextLineMatches(std::string const& expect) {
+    std::string const& line = getNextLine();
+    return line == expect;
+  }
+
+  /**
+   * Returns the current line. Does not move the parser's cursor.
+   */
+  std::string const& currentLine() const {
+    return lines_[curr_line_];
+  }
+
+  /**
+   * Reads the next line and makes sure that it matches the given string.
+   * If not, an exception is thrown.
+   */
+  void expectLine(std::string const& expect) {
+    if (!nextLineMatches(expect)) {
+      std::cerr << "FileConfig: Invalid config file: "
+                << "`" << expect << "` expected; "
+                << "`" << currentLine() << "` found."
+                << std::endl;
+      throw "Invalid config file";
+    }
+  }
+
+  /**
+   * Reads the next key-value pair and makes sure that the key matches the
+   * given key string.
+   * If not, an exception is thrown.
+   */
+  template<class V>
+  V expectKey(std::string const& key) {
+    std::pair<std::string, V> keyval = getKeyValue<std::string, V>();
+    if (keyval.first != key) {
+      std::cerr << "Expected key `" << key << "`; "
+                << "found `" << keyval.first << "`" << std::endl;
+      throw "Unexpected key";
+    }
+
+    return keyval.second;
+  }
+
+  /**
+   * Gets the key-value pair from the next line. If the next line is not a
+   * valid key-value pair, an exception is thrown.
+   *
+   * Advances the parser's cursor.
+   */
+  template<class K, class V>
+  std::pair<K, V> getKeyValue() {
+    std::string const& line = getNextLine();
+    K key;
+    V val;
+    std::istringstream iss(line);
+    std::string eq;
+    iss >> key >> eq >> val;
+
+    if (eq != "=") {
+      std::cerr << "Key-value pair expected, found `" << line << "`" << std::endl;
+      throw "Key-value expected";
+    }
+
+    return std::make_pair(key, val);
+  }
+
+  /// Private members
+  std::string const& file_name_;
+  std::ifstream fin_;
+  /**
+   * Contains all valid lines from the config file, i.e. comments are not found
+   * in this vector.
+   */
+  std::vector<std::string> lines_;
+
+  /**
+   * The line at which the parser is currently found.
+   */
+  size_t curr_line_;
+
+  /**
+   * The base detector that we attach to the video source and to which, in
+   * turn, the "smooth" detector is attached. The `Context` maintains a
+   * reference to it to make sure it doesn't get destroyed, although it is
+   * never exposed to any outside clients.
+   */
+  boost::shared_ptr<BaseObstacleDetector<PointT> > base_detector_;
+};
+
 int main(int argc, char* argv[]) {
   // Initialize the context container
   boost::shared_ptr<Context<SimplePoint> > context;
   try {
+    for (int i = 1; i < argc; ++i) {
+      if (std::string(argv[i]) == "--cfg" && i != argc) {
+        // Default to using the FileConfigContext if a `cfg` CLI parameter is
+        // passed.
+        context.reset(new FileConfigContext<SimplePoint>(argv[i + 1]));
+      }
+    }
+
+    if (!context) {
+      // Fall back to trying to do a hardcoded context if no config file given.
       context.reset(new HardcodedContext<SimplePoint>(argv, argc));
+    }
   } catch (char const* exc) {
     std::cerr << exc << std::endl;
     PrintUsage();
