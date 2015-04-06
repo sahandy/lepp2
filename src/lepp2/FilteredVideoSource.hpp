@@ -245,25 +245,20 @@ protected:
 
   void newPoint(PointT& p, PointCloudType& filtered) {
     MapPoint map_point = MapPoint(p.x * 100, p.y * 100, p.z * 100);
-    boost::circular_buffer<bool>& ref = all_points_[map_point];
-    // TODO Factor out the percentage and number of frames that are considered
-    //      to a member constant.
-    if (ref.capacity() == 0) {
-      ref.set_capacity(30);
-    }
-    ref.push_back(true);
+    uint32_t& ref = all_points_[map_point];
+    ref <<= 1;
+    ref |= 1;
     this_frame_.insert(map_point);
   }
 
   void getFiltered(PointCloudType& filtered) {
-    boost::unordered_map<MapPoint, boost::circular_buffer<bool> >::iterator it =
+    boost::unordered_map<MapPoint, uint32_t>::iterator it =
         all_points_.begin();
     while (it != all_points_.end()) {
       if (this_frame_.find(it->first) == this_frame_.end()) {
-        it->second.push_back(false);
+        it->second <<= 1;
       }
-      unsigned char const count = std::accumulate(
-          it->second.begin(), it->second.end(), 0);
+      int count = __builtin_popcount(it->second);
       if (count >= 10) {
         PointT pt;
         pt.x = it->first.x / 100.;
@@ -276,7 +271,7 @@ protected:
   }
 private:
   boost::unordered_set<MapPoint> this_frame_;
-  boost::unordered_map<MapPoint, boost::circular_buffer<bool> > all_points_;
+  boost::unordered_map<MapPoint, uint32_t> all_points_;
 };
 
 /**
