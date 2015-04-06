@@ -1,0 +1,60 @@
+# This is a sample of a config file for the vision subsystem (when running
+# it with the `--cfg` flag).
+# The config file is in the [toml](https://github.com/toml-lang/toml) format,
+# but the vision subsystem does not use a full toml parser, making the order of
+# defined config values significant.
+#
+# THEREFORE, when writing custom config files, MAKE SURE that the ordering of
+# the various parameters is as shown in this sample.
+
+[PoseService]
+ip = 192.168.0.8
+# (The hex port value is equal to the decimal below) port = 0xd001
+port = 53249
+
+[RobotService]
+ip = 192.168.0.7
+port = 61448
+# Delay is given in milliseconds. 0 is a valid value.
+delay = 10
+
+[VideoSource]
+# Available types: stream, oni, pcd
+#   oni and pcd types require an additional parameter: file_path
+type = stream
+
+[FilteredVideoSource]
+# type = simple|prob|pt1
+type = simple
+
+  # The following list of filters is optional
+  # The order of the filters themselves IS NOT SIGNIFICANT.
+  [[FilteredVideoSource.filters]]
+    type = SensorCalibrationFilter
+    a = 1.0117
+    b = -0.0100851
+
+  [[FilteredVideoSource.filters]]
+    # The OdoTransformer knows to reference the PoseService found in the IOC
+    # container automatically
+    type = RobotOdoTransformer
+
+  [[FilteredVideoSource.filters]]
+    type = TruncateFilter
+    decimal_points = 2
+
+# The list of aggregators is also optional.
+# The order of the aggregators themselves IS NOT SIGNIFICANT.
+[[aggregators]]
+# This sends the obstacles to the LOLA viewer
+type = LolaAggregator
+ip = 192.168.0.3
+port = 53250
+
+[[aggregators]]
+# This sends the obstacles to LOLA itself.
+# It does not require additional configuration, as it will use the service
+# already defined before (RobotService).
+type = RobotAggregator
+# ...every 30 frames
+frame_rate = 30
