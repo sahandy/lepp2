@@ -7,6 +7,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 
 #include "lepp2/VideoObserver.hpp"
+#include "lepp2/ObstacleAggregator.hpp"
 #include "lepp2/models/ObjectModel.h"
 
 namespace lepp {

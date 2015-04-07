@@ -5,6 +5,7 @@
 
 #include <pcl/common/pca.h>
 #include <pcl/common/common.h>
+#include <pcl/kdtree/kdtree_flann.h>
 
 #include "lepp2/models/ObjectModel.h"
 
