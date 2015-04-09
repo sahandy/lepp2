@@ -103,9 +103,9 @@ StairSegmenter<PointT>::StairSegmenter()
   segmentation_.setDistanceThreshold(0.07);
 
   // Parameter initialization of the clusterizer
-  clusterizer_.setClusterTolerance(17);
-  clusterizer_.setMinClusterSize(150);
-  clusterizer_.setMaxClusterSize(3100000);
+  clusterizer_.setClusterTolerance(0.02); // 2 cm
+  clusterizer_.setMinClusterSize(1500);
+  clusterizer_.setMaxClusterSize(25000);
 }
 
 template<class PointT>
@@ -186,12 +186,13 @@ template<class PointT>
 std::vector<pcl::PointIndices> StairSegmenter<PointT>::getStairClusters(
     PointCloudPtr const& cloud_stairs_) {
   // Extract the clusters from such a filtered cloud.
+    std::cout << "entered getStairClusters()" << std::endl;
   kd_tree_->setInputCloud(cloud_stairs_);
   clusterizer_.setSearchMethod(kd_tree_);
   clusterizer_.setInputCloud(cloud_stairs_);
   std::vector<pcl::PointIndices> cluster_indices;
   clusterizer_.extract(cluster_indices);
-
+  std::cout << "returning clusters" << std::endl;
   return cluster_indices;
 }
 
@@ -226,9 +227,9 @@ StairSegmenter<PointT>::segment(
   PointCloudPtr cloud_filtered = preprocessCloud(cloud);
   // extract those planes that are considered as stairs and put them in cloud_stairs_
   findStairs(cloud_filtered);
-  return vec_cloud_stairs_;
-//  std::vector<pcl::PointIndices> stair_cluster_indices = getStairClusters(cloud_stairs_);
-//  return clustersToPointClouds(cloud_stairs_, stair_cluster_indices);
+//  return vec_cloud_stairs_;
+  std::vector<pcl::PointIndices> stair_cluster_indices = getStairClusters(cloud_stairs_);
+  return clustersToPointClouds(cloud_stairs_, stair_cluster_indices);
 }
 
 

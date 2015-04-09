@@ -34,14 +34,14 @@ public:
   virtual void notifyNewFrame(
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& pointCloud) {
-//    if (is_first_cloud) {
-//      pcl_visualizer_->addPointCloud(pointCloud, "TOTALPC");
-//      pcl_visualizer_->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "TOTALPC");
-//      is_first_cloud = false;
-//    }
-//    else
-//      pcl_visualizer_->updatePointCloud(pointCloud, "TOTALPC");
-//    pcl_visualizer_->spinOnce(1);
+    if (is_first_cloud) {
+      pcl_visualizer_->addPointCloud(pointCloud, "TOTALPC");
+      pcl_visualizer_->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "TOTALPC");
+      is_first_cloud = false;
+    }
+    else
+      pcl_visualizer_->updatePointCloud(pointCloud, "TOTALPC");
+    pcl_visualizer_->spinOnce(1);
   }
 
   /**
@@ -66,10 +66,12 @@ void StairVisualizer<PointT>::updateStairs(std::vector<typename pcl::PointCloud<
     pcl::visualization::PointCloudColorHandlerCustom<PointT> red(single_cloud, 255, 0, 0);
     pcl::visualization::PointCloudColorHandlerCustom<PointT> green(single_cloud, 0, 255, 0);
     pcl::visualization::PointCloudColorHandlerCustom<PointT> blue(single_cloud, 0, 0, 255);
+    pcl::visualization::PointCloudColorHandlerCustom<PointT> pink(single_cloud, 200, 18, 170);
 
     pcl_visualizer_->removePointCloud("STAIRS1");
     pcl_visualizer_->removePointCloud("STAIRS2");
     pcl_visualizer_->removePointCloud("STAIRS3");
+    pcl_visualizer_->removePointCloud("STAIRS4");
     size_t const sz = cloud_stairs.size();
     for(size_t i=0; i<sz; ++i) {
       single_cloud->clear();
@@ -81,6 +83,8 @@ void StairVisualizer<PointT>::updateStairs(std::vector<typename pcl::PointCloud<
         pcl_visualizer_->addPointCloud(single_cloud, green, "STAIRS2");
       if(i==2)
         pcl_visualizer_->addPointCloud(single_cloud, blue, "STAIRS3");
+      if(i==3)
+        pcl_visualizer_->addPointCloud(single_cloud, pink, "STAIRS4");
     }
 
     pcl_visualizer_->spinOnce(1);
