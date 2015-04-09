@@ -92,7 +92,7 @@ private:
 
 template<class PointT>
 StairSegmenter<PointT>::StairSegmenter()
-    : min_filter_percentage_(0.2),
+    : min_filter_percentage_(0.1),
       kd_tree_(new pcl::search::KdTree<PointT>()),
       cloud_stairs_(new PointCloudT()) {
   // Parameter initialization of the plane segmentation
@@ -100,7 +100,7 @@ StairSegmenter<PointT>::StairSegmenter()
   segmentation_.setModelType(pcl::SACMODEL_PLANE);
   segmentation_.setMethodType(pcl::SAC_RANSAC);
   segmentation_.setMaxIterations(100); // value recognized by Irem
-  segmentation_.setDistanceThreshold(0.05);
+  segmentation_.setDistanceThreshold(0.07);
 
   // Parameter initialization of the clusterizer
   clusterizer_.setClusterTolerance(17);
@@ -132,6 +132,7 @@ void StairSegmenter<PointT>::findStairs(
   double surface_level = 0;
 
   vec_cloud_stairs_.clear();
+  cloud_stairs_->clear();
 
   // Instance that will be used to perform the elimination of unwanted points
   // from the point cloud.
@@ -165,26 +166,20 @@ void StairSegmenter<PointT>::findStairs(
     extract.setNegative(false);
     extract.filter(*cloud_planar_surface);
 
+    *cloud_stairs_ += *cloud_planar_surface;
+    vec_cloud_stairs_.push_back(cloud_planar_surface);
+
     // ... and remove those inliers from the input cloud
     extract.setNegative(true);
     extract.filter(*cloud_filtered);
 
-    // Determine the minimum surface level based on the currently found plane
-    if (surface_counter == 0)
-        surface_level = cloud_planar_surface->points[0].z;
-      else if (surface_level > cloud_planar_surface->points[0].z)
-        surface_level = cloud_planar_surface->points[0].z;
-      // ... final else??
-    surface_counter++;
     // put the newly found plane in the total cloud
     // TODO determine if pcl::concatenateFields is necessary
     // -> [http://pointclouds.org/documentation/tutorials/concatenate_clouds.php]
-    *cloud_stairs_ += *cloud_planar_surface;
 
-    vec_cloud_stairs_.push_back(cloud_planar_surface);
   }
 
-  std::cout << "#found Stairs: " << vec_cloud_stairs_.size() << std::endl;
+  std::cout << "#found planes: " << vec_cloud_stairs_.size() << std::endl;
 }
 
 template<class PointT>

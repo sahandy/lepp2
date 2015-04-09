@@ -168,9 +168,9 @@ void OdoCoordinateTransformer<PointT>::prepareNext() {
 
 template<class PointT>
 void OdoCoordinateTransformer<PointT>::setNext(LolaKinematicsParams const& params) {
-  std::cerr << "Setting new transformation for frame " << current_frame_
-            << " based on parameters:" << std::endl
-            << params << std::endl;
+//  std::cerr << "Setting new transformation for frame " << current_frame_
+//            << " based on parameters:" << std::endl
+//            << params << std::endl;
   double rotation_matrix[3][3];
   rotationmatrix(params.phi_z_odo, rotation_matrix);
 
@@ -199,8 +199,8 @@ void OdoCoordinateTransformer<PointT>::setNext(LolaKinematicsParams const& param
   }
   transpose(A_odo_cam_no_trans, transform_params_.A_odo_cam);
 
-  std::cerr << "New transformaion matrices calculated:" << std::endl;
-  std::cerr << transform_params_ << std::endl;
+//  std::cerr << "New transformaion matrices calculated:" << std::endl;
+//  std::cerr << transform_params_ << std::endl;
 }
 
 template<class PointT>
