@@ -18,6 +18,7 @@
 #include "lepp2/VideoObserver.hpp"
 #include "lepp2/FilteredVideoSource.hpp"
 #include "lepp2/SmoothObstacleAggregator.hpp"
+#include "lepp2/SplitApproximator.hpp"
 
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
@@ -252,10 +253,17 @@ protected:
 
   void initDetector() {
     // Prepare the approximator that the detector is to use.
+    // First, the simple approximator...
+    boost::shared_ptr<ObjectApproximator<PointT> > simple_approx(
+        boost::shared_ptr<ObjectApproximator<PointT> >(
+          new MomentOfInertiaObjectApproximator<PointT>));
+    // ...then the split strategy
+    boost::shared_ptr<SplitStrategy<PointT> > splitter(
+        new DepthLimitSplitStrategy<PointT>(1));
+    // ...finally, wrap those into a `SplitObjectApproximator` that is given
+    // to the detector.
     boost::shared_ptr<ObjectApproximator<PointT> > approx(
-          new SplitObjectApproximator<PointT>(
-            boost::shared_ptr<ObjectApproximator<PointT> >(
-              new MomentOfInertiaObjectApproximator<PointT>)));
+        new SplitObjectApproximator<PointT>(simple_approx, splitter));
     // Prepare the base detector...
     base_detector_.reset(new BaseObstacleDetector<PointT>(approx));
 
@@ -462,10 +470,17 @@ protected:
 
   void initDetector() {
     // Prepare the approximator that the detector is to use.
+    // First, the simple approximator...
+    boost::shared_ptr<ObjectApproximator<PointT> > simple_approx(
+        boost::shared_ptr<ObjectApproximator<PointT> >(
+          new MomentOfInertiaObjectApproximator<PointT>));
+    // ...then the split strategy
+    boost::shared_ptr<SplitStrategy<PointT> > splitter(
+        new DepthLimitSplitStrategy<PointT>(1));
+    // ...finally, wrap those into a `SplitObjectApproximator` that is given
+    // to the detector.
     boost::shared_ptr<ObjectApproximator<PointT> > approx(
-          new SplitObjectApproximator<PointT>(
-            boost::shared_ptr<ObjectApproximator<PointT> >(
-              new MomentOfInertiaObjectApproximator<PointT>)));
+        new SplitObjectApproximator<PointT>(simple_approx, splitter));
     // Prepare the base detector...
     base_detector_.reset(new BaseObstacleDetector<PointT>(approx));
     this->source()->attachObserver(base_detector_);

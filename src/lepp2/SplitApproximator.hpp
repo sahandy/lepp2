@@ -173,12 +173,14 @@ class SplitObjectApproximator : public ObjectApproximator<PointT> {
 public:
   /**
    * Create a new `SplitObjectApproximator` that will approximate each part by
-   * using the given approximator instance.
+   * using the given approximator instance and perform splits decided by the
+   * given `SplitStrategy` instance.
    */
-  SplitObjectApproximator(boost::shared_ptr<ObjectApproximator<PointT> > approx)
-      : approximator_(approx),
-        // TODO Allow for split strategy injection
-        splitter_(new DepthLimitSplitStrategy<PointT>(1)) {}
+  SplitObjectApproximator(
+        boost::shared_ptr<ObjectApproximator<PointT> > approx,
+        boost::shared_ptr<SplitStrategy<PointT> > splitter)
+          : approximator_(approx),
+            splitter_(splitter) {}
   /**
    * `ObjectApproximator` interface method.
    */
