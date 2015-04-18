@@ -6,7 +6,7 @@ using namespace lepp;
 bool Robot::isInRobotBoundary(ObjectModel const& model) const {
   int obj_id = model.id();
   Coordinate model_center = model.center_point();
-  Coordinate robot_position = pose_service_.getRobotPosition();
+  Coordinate robot_position = this->robot_position();
   // Now find the distance between the two coordinates, giving the
   // (rough) distance between the robot and the object.
   double const squared_dist = (model_center - robot_position).square_norm();

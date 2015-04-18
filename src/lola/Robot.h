@@ -41,6 +41,11 @@ public:
    */
   bool isInRobotBoundary(lepp::ObjectModel const& model) const;
 
+  /**
+   * Returns the robot's position in the world coordinate system (i.e. ODO).
+   */
+  lepp::Coordinate robot_position() const { return pose_service_.getRobotPosition(); }
+
   double inner_zone_square_radius() const { return inner_zone_square_radius_; }
 private:
   PoseService& pose_service_;
