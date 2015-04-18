@@ -27,6 +27,7 @@
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
 #include "lola/OdoCoordinateTransformer.hpp"
+#include "lola/Splitters.hpp"
 #include "lola/LolaAggregator.h"
 #include "lola/PoseService.h"
 #include "lola/RobotService.h"
@@ -483,6 +484,47 @@ protected:
         new AsyncRobotService(ip, port, delay));
     async_robot_service->start();
     this->robot_service_ = async_robot_service;
+  }
+
+  virtual boost::shared_ptr<SplitStrategy<PointT> > buildSplitStrategy() {
+    expectLine("[SplitStrategy]");
+    boost::shared_ptr<CompositeSplitStrategy<PointT> > split_strat(
+        new CompositeSplitStrategy<PointT>);
+
+    // First find the axis on which the splits should be made
+    std::string axis_id = expectKey<std::string>("split_axis");
+    if (axis_id == "largest") {
+      split_strat->set_split_axis(SplitStrategy<PointT>::Largest);
+    } else if (axis_id == "middle") {
+      split_strat->set_split_axis(SplitStrategy<PointT>::Middle);
+    } else if (axis_id == "smallest") {
+      split_strat->set_split_axis(SplitStrategy<PointT>::Smallest);
+    } else {
+      throw "Invalid axis identifier";
+    }
+
+    // Now add all conditions
+    while (nextLineMatches("[[SplitStrategy.conditions]]")) {
+      std::string type = expectKey<std::string>("type");
+      if (type == "SizeLimit") {
+        double size = expectKey<int>("size");
+        split_strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+              new SizeLimitSplitCondition<PointT>(size)));
+      } else if (type == "DepthLimit") {
+        int depth = expectKey<int>("depth");
+        split_strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+              new DepthLimitSplitCondition<PointT>(depth)));
+      } else if (type == "DistanceThreshold") {
+        int distance = expectKey<int>("distance_threshold");
+        split_strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+              new DistanceThresholdSplitCondition<PointT>(distance, *this->robot())));
+      } else {
+        throw "Unknown split condition given.";
+      }
+    }
+    returnToPreviousLine();
+
+    return split_strat;
   }
 
   void initDetector() {
