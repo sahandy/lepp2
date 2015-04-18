@@ -162,8 +162,12 @@ protected:
   /// Builds a `SplitStrategy` instance that the approximator will use for
   /// deciding which objects to split.
   virtual boost::shared_ptr<SplitStrategy<PointT> > buildSplitStrategy() {
-    return boost::shared_ptr<SplitStrategy<PointT> >(
-        new DepthLimitSplitStrategy<PointT>(1));
+    boost::shared_ptr<CompositeSplitStrategy<PointT> > strat(
+        new CompositeSplitStrategy<PointT>);
+    strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+        new DepthLimitSplitCondition<PointT>(1)));
+
+    return strat;
   }
 
   /// Initialize the `ObstacleDetector`. Must set the `detector_` member.

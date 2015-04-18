@@ -118,8 +118,10 @@ int main(int argc, char* argv[]) {
       boost::shared_ptr<ObjectApproximator<PointT> >(
         new MomentOfInertiaObjectApproximator<PointT>));
   // ...then the split strategy
-  boost::shared_ptr<SplitStrategy<PointT> > splitter(
-      new DepthLimitSplitStrategy<PointT>(1));
+  boost::shared_ptr<CompositeSplitStrategy<PointT> > splitter(
+      new CompositeSplitStrategy<PointT>);
+  splitter->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+      new DepthLimitSplitCondition<PointT>(1)));
   // ...finally, wrap those into a `SplitObjectApproximator` that is given
   // to the detector.
   boost::shared_ptr<ObjectApproximator<PointT> > approx(
