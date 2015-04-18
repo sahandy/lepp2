@@ -159,6 +159,50 @@ public:
 };
 
 /**
+ * An implementation of the `SplitStrategy` abstract base class that decides
+ * whether a point cloud should be split by making sure that each condition
+ * is satisfied (i.e. each `SplitCondition` instance returns `true` from its
+ * `shouldSplit` method).
+ *
+ * If and only if all conditions are satisfied, the strategy performs the split
+ * by using the default split implementation provided by the `SplitStrategy`
+ * superclass.
+ */
+template<class PointT>
+class CompositeSplitStrategy : public SplitStrategy<PointT> {
+public:
+  void addSplitCondition(boost::shared_ptr<SplitCondition<PointT> > cond) {
+    conditions_.push_back(cond);
+  }
+protected:
+  bool shouldSplit(
+      int split_depth,
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+    size_t const sz = conditions_.size();
+    if (sz == 0) {
+      // If there are no conditions, do not split the object, in order to avoid
+      // perpetually splitting it, since there's no condition that could
+      // possibly put an end to it.
+      return false;
+    }
+    for (size_t i = 0; i < sz; ++i) {
+      if (!conditions_[i]->shouldSplit(split_depth, point_cloud)) {
+        // No split can happen if any of the conditions disallows it.
+        return false;
+      }
+    }
+
+    // Split only if all of the conditions allowed us to split
+    return true;
+  }
+private:
+  /**
+   * A list of conditions that will be checked before any split happens.
+   */
+  std::vector<boost::shared_ptr<SplitCondition<PointT> > > conditions_;
+};
+
+/**
  * A `SplitStrategy` implementation that initiates the split iff the depth is
  * less than the given limit.
  */
