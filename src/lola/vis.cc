@@ -518,6 +518,12 @@ protected:
         int distance = expectKey<int>("distance_threshold");
         split_strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
               new DistanceThresholdSplitCondition<PointT>(distance, *this->robot())));
+      } else if (type == "ShapeCondition") {
+        double sphere1 = expectKey<double>("sphere1");
+        double sphere2 = expectKey<double>("sphere2");
+        double cylinder = expectKey<double>("cylinder");
+        split_strat->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+              new ShapeSplitCondition<PointT>(sphere1, sphere2, cylinder)));
       } else {
         throw "Unknown split condition given.";
       }
