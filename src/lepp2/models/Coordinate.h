@@ -28,6 +28,10 @@ struct Coordinate {
   double square_norm() const { return x*x + y*y + z*z; }
 };
 
+inline Coordinate operator*(int scalar, Coordinate const& obj) {
+  return Coordinate(scalar * obj.x, scalar * obj.y, scalar * obj.z);
+}
+
 inline Coordinate operator-(Coordinate const& obj) {
   return Coordinate(-obj.x, -obj.y, -obj.z);
 }
