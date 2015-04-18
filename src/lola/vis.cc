@@ -159,6 +159,13 @@ protected:
     return boost::shared_ptr<ObjectApproximator<PointT> >(
         new MomentOfInertiaObjectApproximator<PointT>);
   }
+  /// Builds a `SplitStrategy` instance that the approximator will use for
+  /// deciding which objects to split.
+  virtual boost::shared_ptr<SplitStrategy<PointT> > buildSplitStrategy() {
+    return boost::shared_ptr<SplitStrategy<PointT> >(
+        new DepthLimitSplitStrategy<PointT>(1));
+  }
+
   /// Initialize the `ObstacleDetector`. Must set the `detector_` member.
   virtual void initDetector() = 0;
 
@@ -265,7 +272,7 @@ protected:
         this->getApproximator());
     // ...then the split strategy
     boost::shared_ptr<SplitStrategy<PointT> > splitter(
-        new DepthLimitSplitStrategy<PointT>(1));
+        this->buildSplitStrategy());
     // ...finally, wrap those into a `SplitObjectApproximator` that is given
     // to the detector.
     boost::shared_ptr<ObjectApproximator<PointT> > approx(
@@ -481,7 +488,7 @@ protected:
         this->getApproximator());
     // ...then the split strategy
     boost::shared_ptr<SplitStrategy<PointT> > splitter(
-        new DepthLimitSplitStrategy<PointT>(1));
+        this->buildSplitStrategy());
     // ...finally, wrap those into a `SplitObjectApproximator` that is given
     // to the detector.
     boost::shared_ptr<ObjectApproximator<PointT> > approx(
