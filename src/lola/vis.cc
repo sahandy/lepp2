@@ -152,6 +152,13 @@ protected:
   virtual void addFilters() {}
 
   /// Obstacle detector initialization
+
+  /// Returns a simple approximator instance: will be used to approximate parts
+  /// of objects.
+  virtual boost::shared_ptr<ObjectApproximator<PointT> > getApproximator() {
+    return boost::shared_ptr<ObjectApproximator<PointT> >(
+        new MomentOfInertiaObjectApproximator<PointT>);
+  }
   /// Initialize the `ObstacleDetector`. Must set the `detector_` member.
   virtual void initDetector() = 0;
 
@@ -255,8 +262,7 @@ protected:
     // Prepare the approximator that the detector is to use.
     // First, the simple approximator...
     boost::shared_ptr<ObjectApproximator<PointT> > simple_approx(
-        boost::shared_ptr<ObjectApproximator<PointT> >(
-          new MomentOfInertiaObjectApproximator<PointT>));
+        this->getApproximator());
     // ...then the split strategy
     boost::shared_ptr<SplitStrategy<PointT> > splitter(
         new DepthLimitSplitStrategy<PointT>(1));
@@ -472,8 +478,7 @@ protected:
     // Prepare the approximator that the detector is to use.
     // First, the simple approximator...
     boost::shared_ptr<ObjectApproximator<PointT> > simple_approx(
-        boost::shared_ptr<ObjectApproximator<PointT> >(
-          new MomentOfInertiaObjectApproximator<PointT>));
+        this->getApproximator());
     // ...then the split strategy
     boost::shared_ptr<SplitStrategy<PointT> > splitter(
         new DepthLimitSplitStrategy<PointT>(1));
