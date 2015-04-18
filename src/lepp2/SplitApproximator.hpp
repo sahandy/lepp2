@@ -23,7 +23,18 @@ template<class PointT>
 class SplitStrategy {
 public:
   /**
-   * A pure virtual method that concrete implementations need to define.
+   * Performs the split of the given point cloud according to the particular
+   * strategy.
+   *
+   * This method has a default implementation that is a template method, which
+   * calls the protected `shouldSplit` method and calls the `doSplit` if it
+   * indicated that a split should be made. Since all of the methods are
+   * virtual, concrete implementations can override how the split is made or
+   * keep the default implementation.
+   *
+   * This method can also be overridden by concrete implementations if they
+   * cannot implement the logic only in terms of the `shouldSplit` and
+   * `doSplit` method implementations (although that should be rare).
    *
    * :param split_depth: The current split depth, i.e. the number of times the
    *     original cloud has already been split
@@ -37,8 +48,21 @@ public:
    */
   virtual std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
       int split_depth,
-      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 protected:
+  /**
+   * A pure virtual method that decides whether the given point cloud should be
+   * split or not.
+   *
+   * :param split_depth: The current split depth, i.e. the number of times the
+   *     original cloud has already been split
+   * :param point_cloud: The current point cloud that should be split by the
+   *    `SplitStrategy` implementation.
+   * :returns: A boolean indicating whether the cloud should be split or not.
+   */
+  virtual bool shouldSplit(
+      int split_depth,
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
   /**
    * A helper method that does the actual split, when needed.
    * A default implementation is provided, since that is what most splitters
@@ -47,6 +71,17 @@ protected:
   virtual std::vector<typename pcl::PointCloud<PointT>::Ptr> doSplit(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 };
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr> SplitStrategy<PointT>::split(
+    int split_depth,
+    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+  if (this->shouldSplit(split_depth, point_cloud)) {
+    return this->doSplit(point_cloud);
+  } else {
+    return std::vector<typename pcl::PointCloud<PointT>::Ptr>();
+  }
+}
 
 template<class PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr>
@@ -109,7 +144,7 @@ template<class PointT>
 class DepthLimitSplitStrategy : public SplitStrategy<PointT> {
 public:
   DepthLimitSplitStrategy(int depth_limit) : limit_(depth_limit) {}
-  std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
+  bool shouldSplit(
       int split_depth,
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 private:
@@ -120,16 +155,10 @@ private:
 };
 
 template<class PointT>
-std::vector<typename pcl::PointCloud<PointT>::Ptr>
-DepthLimitSplitStrategy<PointT>::split(
+bool DepthLimitSplitStrategy<PointT>::shouldSplit(
     int split_depth,
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
-
-  if (split_depth < limit_) {
-    return this->doSplit(point_cloud);
-  } else {
-    return std::vector<typename pcl::PointCloud<PointT>::Ptr>();
-  }
+  return split_depth < limit_;
 }
 
 /**
