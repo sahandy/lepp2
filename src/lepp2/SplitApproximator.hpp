@@ -203,6 +203,23 @@ private:
 };
 
 /**
+ * A `SplitCondition` that allows the split to be made only if the split depth
+ * has not exceeded the given limit.
+ */
+template<class PointT>
+class DepthLimitSplitCondition : public SplitCondition<PointT> {
+public:
+  DepthLimitSplitCondition(int depth_limit) : limit_(depth_limit) {}
+  bool shouldSplit(
+      int split_depth,
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+    return split_depth < limit_;
+  }
+private:
+  int const limit_;
+};
+
+/**
  * A `SplitStrategy` implementation that initiates the split iff the depth is
  * less than the given limit.
  */
