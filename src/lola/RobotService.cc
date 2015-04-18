@@ -45,7 +45,6 @@ VisionMessage VisionMessage::DeleteMessage(int model_id) {
   std::cout << "Constructing with object_id = " << model_id << std::endl;
   VisionMessage msg;
   msg.id = REMOVE_SSV;
-  msg.len = sizeof params;
   memset(msg.params, 0, sizeof msg.params);
   // 0 - unused, no point setting the type
   msg.params[1] = model_id;
@@ -61,7 +60,6 @@ VisionMessage VisionMessage::DeletePartMessage(int model_id, int part_id) {
   std::cout << "Constructing with object_id = " << part_id << std::endl;
   VisionMessage msg;
   msg.id = REMOVE_SSV;
-  msg.len = sizeof params;
   memset(msg.params, 0, sizeof msg.params);
   // 0 - unused, no point setting the type
   msg.params[1] = model_id;
