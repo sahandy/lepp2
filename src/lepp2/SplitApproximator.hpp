@@ -38,41 +38,19 @@ public:
   virtual std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
       int split_depth,
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) = 0;
-};
-
-template<class PointT>
-class DepthLimitSplitStrategy : public SplitStrategy<PointT> {
-public:
-  DepthLimitSplitStrategy(int depth_limit) : limit_(depth_limit) {}
-  std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
-      int split_depth,
-      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
-private:
+protected:
   /**
    * A helper method that does the actual split, when needed.
+   * A default implementation is provided, since that is what most splitters
+   * will want to use...
    */
-  std::vector<typename pcl::PointCloud<PointT>::Ptr> doSplit(
+  virtual std::vector<typename pcl::PointCloud<PointT>::Ptr> doSplit(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
-
-  int const limit_;
 };
 
 template<class PointT>
 std::vector<typename pcl::PointCloud<PointT>::Ptr>
-DepthLimitSplitStrategy<PointT>::split(
-    int split_depth,
-    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
-
-  if (split_depth < limit_) {
-    return this->doSplit(point_cloud);
-  } else {
-    return std::vector<typename pcl::PointCloud<PointT>::Ptr>();
-  }
-}
-
-template<class PointT>
-std::vector<typename pcl::PointCloud<PointT>::Ptr>
-DepthLimitSplitStrategy<PointT>::doSplit(
+SplitStrategy<PointT>::doSplit(
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
   typedef pcl::PointCloud<PointT> PointCloud;
   typedef typename pcl::PointCloud<PointT>::Ptr PointCloudPtr;
@@ -121,6 +99,37 @@ DepthLimitSplitStrategy<PointT>::doSplit(
 
   // Return the parts in a vector, as expected by the interface...
   return ret;
+}
+
+/**
+ * A `SplitStrategy` implementation that initiates the split iff the depth is
+ * less than the given limit.
+ */
+template<class PointT>
+class DepthLimitSplitStrategy : public SplitStrategy<PointT> {
+public:
+  DepthLimitSplitStrategy(int depth_limit) : limit_(depth_limit) {}
+  std::vector<typename pcl::PointCloud<PointT>::Ptr> split(
+      int split_depth,
+      const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
+private:
+  /**
+   * The limit at which splits will stop.
+   */
+  int const limit_;
+};
+
+template<class PointT>
+std::vector<typename pcl::PointCloud<PointT>::Ptr>
+DepthLimitSplitStrategy<PointT>::split(
+    int split_depth,
+    const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
+
+  if (split_depth < limit_) {
+    return this->doSplit(point_cloud);
+  } else {
+    return std::vector<typename pcl::PointCloud<PointT>::Ptr>();
+  }
 }
 
 /**
