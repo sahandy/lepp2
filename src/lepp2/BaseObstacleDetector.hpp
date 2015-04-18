@@ -63,7 +63,12 @@ template<class PointT>
 class BaseObstacleDetector : public lepp::VideoObserver<PointT>,
                              public IObstacleDetector {
 public:
-  BaseObstacleDetector();
+  /**
+   * Creates a new `BaseObstacleDetector` that will use the given
+   * `ObjectApproximator` instance for generating approximations for detected
+   * obstacles.
+   */
+  BaseObstacleDetector(boost::shared_ptr<ObjectApproximator<PointT> > approx);
   virtual ~BaseObstacleDetector() {}
 
   /**
@@ -92,11 +97,10 @@ private:
 };
 
 template<class PointT>
-BaseObstacleDetector<PointT>::BaseObstacleDetector()
-    : approximator_(new SplitObjectApproximator<PointT>(
-        boost::shared_ptr<ObjectApproximator<PointT> >(
-          new MomentOfInertiaObjectApproximator<PointT>))),
-      segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
+BaseObstacleDetector<PointT>::BaseObstacleDetector(
+    boost::shared_ptr<ObjectApproximator<PointT> > approx)
+      : approximator_(approx),
+        segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
   // TODO Allow for dependency injection.
 }
 

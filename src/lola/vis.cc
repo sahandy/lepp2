@@ -251,8 +251,14 @@ protected:
   }
 
   void initDetector() {
+    // Prepare the approximator that the detector is to use.
+    boost::shared_ptr<ObjectApproximator<PointT> > approx(
+          new SplitObjectApproximator<PointT>(
+            boost::shared_ptr<ObjectApproximator<PointT> >(
+              new MomentOfInertiaObjectApproximator<PointT>)));
     // Prepare the base detector...
-    base_detector_.reset(new BaseObstacleDetector<PointT>());
+    base_detector_.reset(new BaseObstacleDetector<PointT>(approx));
+
     this->source()->attachObserver(base_detector_);
     // Smooth out the basic detector by applying a smooth detector to it
     boost::shared_ptr<SmoothObstacleAggregator> smooth_detector(
@@ -455,8 +461,13 @@ protected:
   }
 
   void initDetector() {
+    // Prepare the approximator that the detector is to use.
+    boost::shared_ptr<ObjectApproximator<PointT> > approx(
+          new SplitObjectApproximator<PointT>(
+            boost::shared_ptr<ObjectApproximator<PointT> >(
+              new MomentOfInertiaObjectApproximator<PointT>)));
     // Prepare the base detector...
-    base_detector_.reset(new BaseObstacleDetector<PointT>());
+    base_detector_.reset(new BaseObstacleDetector<PointT>(approx));
     this->source()->attachObserver(base_detector_);
     // Smooth out the basic detector by applying a smooth detector to it
     boost::shared_ptr<SmoothObstacleAggregator> smooth_detector(

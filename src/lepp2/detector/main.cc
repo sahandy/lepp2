@@ -111,9 +111,14 @@ int main(int argc, char* argv[]) {
   // Wrap the raw source in a filter
   boost::shared_ptr<FilteredVideoSource<PointT> > source(
       buildFilteredSource(raw_source));
+  // Prepare the approximator that the detector is to use
+  boost::shared_ptr<ObjectApproximator<PointT> > approx(
+      new SplitObjectApproximator<PointT>(
+        boost::shared_ptr<ObjectApproximator<PointT> >(
+          new MomentOfInertiaObjectApproximator<PointT>)));
   // Prepare the detector
   boost::shared_ptr<BaseObstacleDetector<PointT> > detector(
-      new BaseObstacleDetector<PointT>());
+      new BaseObstacleDetector<PointT>(approx));
   // Attaching the detector to the source: process the point clouds obtained
   // by the source.
   source->attachObserver(detector);
