@@ -22,6 +22,17 @@ namespace lepp {
 template<class PointT>
 class SplitStrategy {
 public:
+  enum SplitAxis {
+    Largest = 0,
+    Middle = 1,
+    Smallest = 2,
+  };
+
+  SplitStrategy() : axis_(Largest) {}
+
+  void set_split_axis(SplitAxis axis) { axis_ = axis; }
+  SplitAxis split_axis() const { return axis_; }
+
   /**
    * Performs the split of the given point cloud according to the particular
    * strategy.
@@ -70,6 +81,8 @@ protected:
    */
   virtual std::vector<typename pcl::PointCloud<PointT>::Ptr> doSplit(
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
+private:
+  SplitAxis axis_;
 };
 
 template<class PointT>
@@ -95,7 +108,8 @@ SplitStrategy<PointT>::doSplit(
   Eigen::Vector3f eigenvalues = pca.getEigenValues();
   Eigen::Matrix3f eigenvectors = pca.getEigenVectors();
 
-  Eigen::Vector3d main_pca_axis = eigenvectors.col(0).cast<double>();
+  Eigen::Vector3d main_pca_axis = eigenvectors.col(static_cast<int>(axis_))
+                                              .cast<double>();
 
   // Compute the centroid
   Eigen::Vector4d centroid;
