@@ -242,7 +242,12 @@ public:
   using typename FilteredVideoSource<PointT>::PointCloudType;
 
   ProbFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source)
-      : FilteredVideoSource<PointT>(source) {}
+      : FilteredVideoSource<PointT>(source),
+        larger_voxelization_(false) {}
+  ProbFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source,
+                          bool larger_voxelization)
+      : FilteredVideoSource<PointT>(source),
+        larger_voxelization_(larger_voxelization) {}
 protected:
   void newFrame() {
     this_frame_.clear();
@@ -256,6 +261,14 @@ protected:
 
   void newPoint(PointT& p, PointCloudType& filtered) {
     MapPoint map_point = MapPoint(p.x * 100, p.y * 100, p.z * 100);
+
+    if (larger_voxelization_) {
+      int const mask = 0xFFFFFFFE;
+      map_point.x &= mask;
+      map_point.y &= mask;
+      map_point.z &= mask;
+    }
+
     uint32_t& ref = all_points_[map_point];
     ref <<= 1;
     ref |= 1;
@@ -312,6 +325,8 @@ private:
   boost::unordered_map<MapPoint, uint32_t> all_points_;
   MapPoint min_pt;
   MapPoint max_pt;
+
+  bool const larger_voxelization_;
 };
 
 /**
