@@ -32,6 +32,9 @@
 #include "lola/PoseService.h"
 #include "lola/RobotService.h"
 
+#include "deps/easylogging++.h"
+_INITIALIZE_EASYLOGGINGPP
+
 using namespace lepp;
 
 /**
@@ -778,6 +781,7 @@ private:
 };
 
 int main(int argc, char* argv[]) {
+  _START_EASYLOGGINGPP(argc, argv);
   // Initialize the context container
   boost::shared_ptr<Context<SimplePoint> > context;
   try {

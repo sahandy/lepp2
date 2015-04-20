@@ -21,6 +21,9 @@
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
 #include "lepp2/models/ObjectModel.h"
+#include "deps/easylogging++.h"
+_INITIALIZE_EASYLOGGINGPP
+
 
 using namespace lepp;
 

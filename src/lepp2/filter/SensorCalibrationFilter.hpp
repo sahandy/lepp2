@@ -24,11 +24,9 @@ public:
    * Implementation of the `PointFilter` interface.
    */
   bool apply(PointT& pt) {
-    // std::cerr << pt << " = > ";
     pt.z = scale_*pt.z + offset_;
     pt.x *= scale_ + offset_/pt.z;
     pt.y *= scale_ + offset_/pt.z;
-    // std::cerr << pt << std::endl;
     return true;
   }
 

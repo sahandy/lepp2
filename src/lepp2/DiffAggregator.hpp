@@ -99,11 +99,9 @@ inline void DiffAggregator::updateObstacles(
     // Check if the obstacle was found in the previous snapshot...
     if (previous_ids_.find(id) == previous_ids_.end()) {
       // This is a new obstacle.
-      std::cout << "DiffAggregator: New obstacle id = " << id << " (" << *obstacles[i] << ")" << std::endl;
       if (new_cb_) new_cb_(*obstacles[i]);
     } else {
       // This is a modified obstacle.
-      std::cout << "DiffAggregator: A modified obstacle id = " << id << " (" << *obstacles[i] << ")" << std::endl;
       if (mod_cb_) mod_cb_(*obstacles[i]);
     }
     // ..and now remember it for the future.
@@ -117,7 +115,6 @@ inline void DiffAggregator::updateObstacles(
                       current_ids.begin(), current_ids.end(),
                       std::back_inserter(deleted));
   for (size_t i = 0; i < deleted.size(); ++i) {
-    std::cout << "DiffAggregator: A deleted obstacle id = " << deleted[i] << std::endl;
     bool drop = true;
     int const del_id = deleted[i];
     if (del_cb_) {
@@ -127,7 +124,6 @@ inline void DiffAggregator::updateObstacles(
     if (drop) {
       // If the callback says that the object should be deleted (or there
       // was no callback set) then really finally drop it.
-      std::cerr << "Deleting obstacle " << del_id << std::endl;
       current_obstacles_.erase(del_id);
       previous_ids_.erase(del_id);
     }

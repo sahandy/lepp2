@@ -4,6 +4,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "deps/easylogging++.h"
+
 namespace {
 
 /**
@@ -39,10 +41,10 @@ void transpose(double matrix[][3], double transpose[][3]) {
 void PoseService::read_handler(
     boost::system::error_code const& ec,
     std::size_t bytes_transferred) {
-  std::cerr << "Pose Service: Received " << bytes_transferred << std::endl;
+  LINFO << "Pose Service: Received " << bytes_transferred;
   if (bytes_transferred != sizeof(HR_Pose)) {
-    std::cerr << "Pose Service: Error: Invalid datagram size."
-              << "Expected " << sizeof(HR_Pose) << std::endl;
+    LERROR << "Pose Service: Error: Invalid datagram size."
+           << "Expected " << sizeof(HR_Pose);
     // If this one fails, we still queue another receive...
     queue_recv();
     return;
@@ -54,12 +56,12 @@ void PoseService::read_handler(
   // This performs an atomic update of the pointer, making it a lock-free,
   // thread-safe operation.
   pose_ = new_pose;
-  std::cerr << "Pose Service: Updated current pose" << std::endl;
+  LINFO << "Pose Service: Updated current pose";
   queue_recv();
 }
 
 void PoseService::service_thread() {
-  std::cerr << "Pose Service: Thread started" << std::endl;
+  LINFO << "Pose Service: Thread started";
   io_service_.run();
 }
 

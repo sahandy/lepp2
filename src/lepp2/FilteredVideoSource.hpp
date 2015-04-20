@@ -15,6 +15,8 @@
 
 #include "lepp2/debug/timer.hpp"
 
+#include "deps/easylogging++.h"
+
 /**
  * A struct that is used to describe a single point in space that can be used
  * to index sets and maps of such points.
@@ -206,8 +208,8 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   // ...and we're done!
   t.stop();
 
-  std::cerr << "Total included points " << cloud_filtered->size() << std::endl;
-  std::cerr << "Filtering took " << t.duration() << std::endl;
+  LTRACE << "Total included points " << cloud_filtered->size();
+  PINFO << "Filtering took " << t.duration();
   // Finally, the cloud that is emitted by this instance is the filtered cloud.
   this->setNextFrame(cloud_filtered);
 }

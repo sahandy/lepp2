@@ -1,4 +1,6 @@
 #include "lola/LolaAggregator.h"
+#include "deps/easylogging++.h"
+
 using namespace lepp;
 
 namespace {
@@ -70,7 +72,7 @@ LolaAggregator::~LolaAggregator() {
 }
 
 void LolaAggregator::updateObstacles(std::vector<ObjectModelPtr> const& obstacles) {
-  std::cerr << "Sending to " << remote_endpoint_ << std::endl;
+  LTRACE << "LolaViewer: Sending to " << remote_endpoint_;
 
   // Builds the payload: a raw byte buffer.
   std::vector<char> payload(buildPayload(obstacles));
@@ -277,22 +279,22 @@ void RobotAggregator::sendNew(ObjectModel& new_model, int model_id, int part_id)
   new_model.accept(coefs);
   VisionMessage msg = VisionMessage::SetMessage(
       coefs.type_id(), model_id, part_id, coefs.radius(), coefs.coefs());
-  std::cerr << "RobotAggregator: Creating new primitive ["
-            << "type = " << coefs.type_id()
-            << "; id = " << part_id << std::endl;
+  LINFO << "RobotAggregator: Creating new primitive ["
+        << "type = " << coefs.type_id()
+        << "; id = " << part_id;
   service_.sendMessage(msg);
 }
 
 void RobotAggregator::sendDelete(int id) {
-  std::cerr << "RobotAggregator: Deleting a primitive id = "
-            << id << std::endl;
+  LINFO << "RobotAggregator: Deleting a primitive id = "
+        << id;
   VisionMessage del = VisionMessage::DeleteMessage(id);
   service_.sendMessage(del);
 }
 
 void RobotAggregator::sendDeletePart(int model_id, int part_id) {
-  std::cerr << "RobotAggregator: Deleting a primitive id = "
-            << part_id << std::endl;
+  LINFO << "RobotAggregator: Deleting a primitive id = "
+        << part_id;
   VisionMessage del = VisionMessage::DeletePartMessage(model_id, part_id);
   service_.sendMessage(del);
 }
@@ -302,8 +304,8 @@ void RobotAggregator::sendModify(ObjectModel& model, int model_id, int part_id) 
   model.accept(coefs);
   VisionMessage msg = VisionMessage::ModifyMessage(
       coefs.type_id(), model_id, part_id, coefs.radius(), coefs.coefs());
-  std::cerr << "RobotAggregator: Modifying existing primitive ["
+  LINFO << "RobotAggregator: Modifying existing primitive ["
             << "type = " << coefs.type_id()
-            << "; id = " << part_id << std::endl;
+            << "; id = " << part_id;
   service_.sendMessage(msg);
 }

@@ -15,6 +15,8 @@
 #include "lepp2/MomentOfInertiaApproximator.hpp"
 #include "lepp2/SplitApproximator.hpp"
 
+#include "deps/easylogging++.h"
+
 using namespace lepp;
 
 #include "lepp2/debug/timer.hpp"
@@ -113,7 +115,7 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
   try {
     update();
   } catch (...) {
-    std::cerr << "ObstacleDetector: Obstacle detection failed ..." << std::endl;
+    LERROR << "ObstacleDetector: Obstacle detection failed ...";
   }
 }
 
@@ -131,7 +133,7 @@ void BaseObstacleDetector<PointT>::update() {
     models.push_back(approximator_->approximate(segments[i]));
   }
   t.stop();
-  std::cerr << "Obstacle detection took " << t.duration() << std::endl;
+  PINFO << "Obstacle detection took " << t.duration();
 
   notifyObstacles(models);
 }
