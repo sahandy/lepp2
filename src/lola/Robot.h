@@ -23,17 +23,16 @@ public:
    */
   Robot(PoseService& pose_service)
       : pose_service_(pose_service),
-        inner_zone_square_radius_(1.44) {}
+        inner_zone_square_radius_(1.2) {}
   /**
    * Create a new `Robot` instance that will wrap the given `pose_service`
    * instance.
    *
-   * The (squared) radius of the inner zone is set to
-   * `inner_zone_square_radius_`.
+   * The radius of the inner zone is set to `inner_zone_radius_`.
    */
-  Robot(PoseService& pose_service, double inner_zone_square_radius)
+  Robot(PoseService& pose_service, double inner_zone_radius)
       : pose_service_(pose_service),
-        inner_zone_square_radius_(inner_zone_square_radius) {}
+        inner_zone_square_radius_(inner_zone_radius*inner_zone_radius) {}
 
   /**
    * Checks whether the given model is currently within the boundary of
