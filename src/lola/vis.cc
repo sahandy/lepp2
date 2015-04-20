@@ -575,8 +575,9 @@ protected:
   }
 
   void initVisualizer() {
-    // Factor out to a member ...
-    bool visualization = true;
+    expectLine("[Visualization]");
+    std::string enabled = expectKey<std::string>("enabled");
+    bool visualization = enabled == "true";
     if (visualization) {
       this->visualizer_.reset(new ObstacleVisualizer<PointT>());
       // Attach the visualizer to both the point cloud source...

@@ -84,3 +84,8 @@ port = 53250
 type = RobotAggregator
 # ...every 30 frames
 frame_rate = 30
+
+[Visualization]
+# Whether the results are visualized **locally**
+# enabled = true|false
+enabled = false
