@@ -414,6 +414,12 @@ public:
     this->init();
   }
 protected:
+  void initRobot() {
+    expectLine("[Robot]");
+    double bubble_size = expectKey<double>("bubble_size");
+    this->robot_.reset(new Robot(*this->pose_service(), bubble_size));
+  }
+
   /// Implementations of initialization of various parts of the pipeline.
   void initRawSource() {
     expectLine("[VideoSource]");

@@ -18,6 +18,11 @@ port = 61448
 # Delay is given in milliseconds. 0 is a valid value.
 delay = 10
 
+[Robot]
+# The size of the "bubble" in which no modifications or deletions of objects
+# are sent to the robot. **In meters**
+bubble_size = 1.2
+
 [VideoSource]
 # Available types: stream, oni, pcd
 #   oni and pcd types require an additional parameter: file_path
