@@ -31,7 +31,7 @@ public:
    * The (squared) radius of the inner zone is set to
    * `inner_zone_square_radius_`.
    */
-  Robot(PoseService& pose_service, int inner_zone_square_radius)
+  Robot(PoseService& pose_service, double inner_zone_square_radius)
       : pose_service_(pose_service),
         inner_zone_square_radius_(inner_zone_square_radius) {}
 
