@@ -65,6 +65,13 @@ split_axis = largest
     # size is a volume in [cm^3]
     size = 8000
   [[SplitStrategy.conditions]]
+    type = ShapeCondition
+    # The threshold values to consider something "very much" a sphere
+    sphere1 = .8
+    sphere2 = .1
+    # The threshold value to consider something "very much" a cylinder
+    cylinder = .25
+  [[SplitStrategy.conditions]]
     type = DistanceThreshold
     # Distance is in [cm]
     distance_threshold = 100
