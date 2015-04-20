@@ -48,11 +48,14 @@ template<class PointT>
 bool DistanceThresholdSplitCondition<PointT>::shouldSplit(
     int split_depth,
     const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud) {
-  Coordinate robot_position = robot_.robot_position();
+  // The distance should be in [cm] so we need to scale up the original points
+  // (as they are in [m])
+  Coordinate const robot_position = 100 * robot_.robot_position();
   // Compute the centroid of the pointcloud -> approx position of the object
   Eigen::Vector4d centroid_4d;
   pcl::compute3DCentroid(*point_cloud, centroid_4d);
-  Coordinate centroid(centroid_4d[0], centroid_4d[1], centroid_4d[2]);
+  Coordinate const centroid(
+      100 * centroid_4d[0], 100 * centroid_4d[1], 100 * centroid_4d[2]);
   // Now find he distance between the robot's location and the centroid of the
   // cloud, giving an estimate of how far the robot is from the object.
   int const dist = (robot_position - centroid).square_norm();
