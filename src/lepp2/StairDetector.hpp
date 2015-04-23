@@ -98,18 +98,10 @@ void StairDetector<PointT>::update() {
   t.stop();
   std::cerr << "Stair segmentation took " << t.duration() << std::endl;
 
+  t.start();
   notifyStairs(stairs);
-
-//  // Iteratively approximate the segments
-//  size_t segment_count = segments.size();
-//  std::vector<ObjectModelPtr> models;
-//  for (size_t i = 0; i < segment_count; ++i) {
-//    models.push_back(approximator_->approximate(segments[i]));
-//  }
-
-//  std::cerr << "Obstacle detection took " << t.duration() << std::endl;
-//
-//  notifyObstacles(models);
+  t.stop();
+  std::cerr << "visualization took " << t.duration() << std::endl;
 }
 
 template<class PointT>
