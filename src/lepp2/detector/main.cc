@@ -74,11 +74,11 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
   } else {
     // TODO The reference to the service should eventually be obtained from some
     //      sort of IOC container.
-    boost::shared_ptr<PoseService> service(new PoseService("127.0.0.1", 5000));
-    service->start();
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new RobotOdoTransformer<SimplePoint>(service));
-    source->addFilter(filter);
+//    boost::shared_ptr<PoseService> service(new PoseService("127.0.0.1", 5000));
+//    service->start();
+//    boost::shared_ptr<PointFilter<SimplePoint> > filter(
+//        new RobotOdoTransformer<SimplePoint>(service));
+//    source->addFilter(filter);
   }
   {
     boost::shared_ptr<PointFilter<SimplePoint> > filter(
