@@ -153,7 +153,7 @@ void StairSegmenter<PointT>::findStairs(
     // We didn't get any plane in this run. Therefore, there are no more planes
     // to be removed from the cloud.
     if (current_plane_indices->indices.size() == 0) {
-      std::cout << "cannot find more planes > BREAK" << std::endl;
+      std::cerr << "cannot find more planes > BREAK" << std::endl;
       break;
     }
 
@@ -172,27 +172,18 @@ void StairSegmenter<PointT>::findStairs(
     // ... and remove those inliers from the input cloud
     extract.setNegative(true);
     extract.filter(*cloud_filtered);
-
-    // put the newly found plane in the total cloud
-    // TODO determine if pcl::concatenateFields is necessary
-    // -> [http://pointclouds.org/documentation/tutorials/concatenate_clouds.php]
-
   }
-
-  std::cout << "#found planes: " << vec_cloud_stairs_.size() << std::endl;
 }
 
 template<class PointT>
 std::vector<pcl::PointIndices> StairSegmenter<PointT>::getStairClusters(
     PointCloudPtr const& cloud_stairs_) {
   // Extract the clusters from such a filtered cloud.
-    std::cout << "entered getStairClusters()" << std::endl;
   kd_tree_->setInputCloud(cloud_stairs_);
   clusterizer_.setSearchMethod(kd_tree_);
   clusterizer_.setInputCloud(cloud_stairs_);
   std::vector<pcl::PointIndices> cluster_indices;
   clusterizer_.extract(cluster_indices);
-  std::cout << "returning clusters" << std::endl;
   return cluster_indices;
 }
 
@@ -227,7 +218,6 @@ StairSegmenter<PointT>::segment(
   PointCloudPtr cloud_filtered = preprocessCloud(cloud);
   // extract those planes that are considered as stairs and put them in cloud_stairs_
   findStairs(cloud_filtered);
-//  return vec_cloud_stairs_;
   std::vector<pcl::PointIndices> stair_cluster_indices = getStairClusters(cloud_stairs_);
   return clustersToPointClouds(cloud_stairs_, stair_cluster_indices);
 }
