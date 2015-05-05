@@ -102,6 +102,7 @@ template<class PointT>
 void VideoSource<PointT>::setNextFrame(
     const typename PointCloudType::ConstPtr& cloud) {
   ++frame_counter_;
+  std::cout << "setNextFrame: #" << frame_counter_ << std::endl;
   notifyObservers(frame_counter_, cloud);
 }
 
