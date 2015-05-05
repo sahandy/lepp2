@@ -3,6 +3,8 @@
 
 #include "BaseVideoSource.hpp"
 #include <pcl/io/openni_grabber.h>
+#include <pcl/common/time.h>
+#include <boost/circular_buffer.hpp>
 
 namespace lepp {
 
@@ -22,7 +24,11 @@ public:
    * The VideoSource instance takes ownership of the given Grabber instance.
    */
   GeneralGrabberVideoSource(boost::shared_ptr<pcl::Grabber> interface)
-      : interface_(interface) {}
+      : interface_(interface),
+        callback_frame_counter(0){
+
+    incoming_cloud_buffer_.set_capacity(120);
+  }
   virtual ~GeneralGrabberVideoSource();
   virtual void open();
 private:
@@ -30,6 +36,9 @@ private:
    * A reference to the Grabber instance that the VideoSource wraps.
    */
   const boost::shared_ptr<pcl::Grabber> interface_;
+  boost::circular_buffer<std::pair<int, typename pcl::PointCloud<PointT>::ConstPtr> > incoming_cloud_buffer_;
+  boost::mutex cloud_mutex;
+  int callback_frame_counter;
 
   /**
    * Member function which is registered as a callback of the Grabber.
@@ -37,6 +46,7 @@ private:
    * adaptation of the interface.
    */
   void cloud_cb_(const typename pcl::PointCloud<PointT>::ConstPtr& cloud);
+  void processBuffer(void);
 };
 
 template<class PointT>
@@ -48,7 +58,14 @@ GeneralGrabberVideoSource<PointT>::~GeneralGrabberVideoSource() {
 template<class PointT>
 void GeneralGrabberVideoSource<PointT>::cloud_cb_(
     const typename pcl::PointCloud<PointT>::ConstPtr& cloud) {
-  this->setNextFrame(cloud);
+
+    ++callback_frame_counter;
+    std::cout << " ==================================================== " << std::endl;
+    std::cout << "Callback cloud #" << callback_frame_counter << std::endl;
+
+    std::pair<int, typename pcl::PointCloud<PointT>::ConstPtr> p;
+    incoming_cloud_buffer_.push_back(std::make_pair(callback_frame_counter, cloud));
+    std::cout << "#Clouds waiting in queue: " << incoming_cloud_buffer_.size() << std::endl;
 }
 
 template<class PointT>
@@ -60,7 +77,27 @@ void GeneralGrabberVideoSource<PointT>::open() {
       this, _1);
   interface_->registerCallback(f);
 
+  boost::thread buffer_processor_thread(&GeneralGrabberVideoSource<PointT>::processBuffer, this);
+
   interface_->start();
+
+  buffer_processor_thread.join();
+}
+
+template<class PointT>
+void GeneralGrabberVideoSource<PointT>::processBuffer() {
+    while (true)
+    {
+      while (!incoming_cloud_buffer_.empty())
+      {
+        //int last_index = incoming_cloud_buffer_.size() - 1;
+        std::cout << "processing frame #" << incoming_cloud_buffer_[0].first << std::endl;
+        this->setNextFrame( incoming_cloud_buffer_[0].second );
+        incoming_cloud_buffer_.pop_front();
+      }
+      // If the buffer is empty, then wait for 33 milliseconds for the next frame to come (based on a 30 Hz video)
+      boost::this_thread::sleep(boost::posix_time::milliseconds(33));
+    }
 }
 
 /**
@@ -75,6 +112,8 @@ public:
   LiveStreamSource()
       : GeneralGrabberVideoSource<PointT>(boost::shared_ptr<pcl::Grabber>(
             new pcl::OpenNIGrabber("", pcl::OpenNIGrabber::OpenNI_QVGA_30Hz))) {
+
+
     // Empty... All work performed in the initializer list.
   }
 };

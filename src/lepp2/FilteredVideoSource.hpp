@@ -196,6 +196,8 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
         break;
       }
     }
+
+
     // And pass such a filtered/modified point to the cloud-level filter.
     if (valid) this->newPoint(p, filtered);
   }
@@ -205,7 +207,6 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   // ...and we're done!
   t.stop();
 
-  std::cerr << "Total included points " << cloud_filtered->size() << std::endl;
   std::cerr << "Filtering took " << t.duration() << std::endl;
   // Finally, the cloud that is emitted by this instance is the filtered cloud.
   this->setNextFrame(cloud_filtered);
