@@ -277,6 +277,7 @@ FileOdoTransformer<PointT>::FileOdoTransformer(
 template<class PointT>
 LolaKinematicsParams FileOdoTransformer<PointT>::getNextParams() {
   LolaKinematicsParams use = current_;
+  std::cout << "TF_Current_Frame: #" << this->current_frame_ << std::endl;
   if (this->current_frame_ + 1 == next_.frame_num) {
     current_ = next_;
     next_ = this->readNextParams();
@@ -309,6 +310,10 @@ FileOdoTransformer<PointT>::readNextParams() {
   ss >> params.stance;
   ss >> params.frame_num;
   ss >> params.stamp;
+
+//  std::cout << "param.frame_num: " <<params.frame_num << std::endl;
+//  for (size_t i = 0; i < 3; ++i) {
+//    std::cout << "t_stance_odo[" << i << "] = " << params.t_stance_odo[i] << std::endl; }
 
   return params;
 }
