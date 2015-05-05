@@ -38,6 +38,8 @@ namespace lepp
       notifyNewFrame (int idx,
                       const typename pcl::PointCloud<PointT>::ConstPtr& pointCloud)
       {
+
+        std::cout << "Showing Frame #" << idx << std::endl;
         if (is_first_cloud)
         {
           pcl_visualizer_->addPointCloud (pointCloud, "TOTALPC");
