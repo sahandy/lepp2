@@ -28,7 +28,7 @@ public:
   // Callback typedefs
   typedef boost::function<void (ObjectModel&)> NewObstacleCallback;
   typedef boost::function<void (ObjectModel&)> ModifiedObstacleCallback;
-  typedef boost::function<void (int)> DeletedObstacleCallback;
+  typedef boost::function<bool (ObjectModel&)> DeletedObstacleCallback;
 
   /**
    * Create a new `DiffAggregator` that will output the diff between frames
@@ -68,6 +68,13 @@ private:
    */
   std::set<int> previous_ids_;
 
+  /**
+   * Maps the ID of an obstacle to its ObjectModel smart pointer.
+   * Contains the obstacles that the `DiffAggregator` currently knows
+   * about.
+   */
+  std::map<int, ObjectModelPtr> current_obstacles_;
+
   // Callbacks that are invoked in the appropriate event.
   NewObstacleCallback new_cb_;
   ModifiedObstacleCallback mod_cb_;
@@ -87,15 +94,18 @@ inline void DiffAggregator::updateObstacles(
   for (size_t i = 0; i < sz; ++i) {
     int const id = obstacles[i]->id();
     current_ids.insert(id);
+    // Start tracking (or update) the obstacle model.
+    current_obstacles_[id] = obstacles[i];
+    // Check if the obstacle was found in the previous snapshot...
     if (previous_ids_.find(id) == previous_ids_.end()) {
       // This is a new obstacle.
-      std::cout << "DiffAggregator: New obstacle id = " << id << " (" << *obstacles[i] << ")" << std::endl;
       if (new_cb_) new_cb_(*obstacles[i]);
     } else {
       // This is a modified obstacle.
-      std::cout << "DiffAggregator: A modified obstacle id = " << id << " (" << *obstacles[i] << ")" << std::endl;
       if (mod_cb_) mod_cb_(*obstacles[i]);
     }
+    // ..and now remember it for the future.
+    previous_ids_.insert(id);
   }
 
   // The ids that are in the previous set, but not the current ones are deleted
@@ -105,12 +115,19 @@ inline void DiffAggregator::updateObstacles(
                       current_ids.begin(), current_ids.end(),
                       std::back_inserter(deleted));
   for (size_t i = 0; i < deleted.size(); ++i) {
-    std::cout << "DiffAggregator: A deleted obstacle id = " << deleted[i] << std::endl;
-    if (del_cb_) del_cb_(deleted[i]);
+    bool drop = true;
+    int const del_id = deleted[i];
+    if (del_cb_) {
+      // Notify the callback that the object should be deleted
+      drop = del_cb_(*current_obstacles_[del_id]);
+    }
+    if (drop) {
+      // If the callback says that the object should be deleted (or there
+      // was no callback set) then really finally drop it.
+      current_obstacles_.erase(del_id);
+      previous_ids_.erase(del_id);
+    }
   }
-
-  // Finally, forget the previous set, in favor of the obstacles we know now!
-  previous_ids_ = current_ids;
 }
 
 }  // namespace lepp

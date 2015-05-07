@@ -15,14 +15,62 @@
 #include "lepp2/MomentOfInertiaApproximator.hpp"
 #include "lepp2/SplitApproximator.hpp"
 
+#include "deps/easylogging++.h"
+
 using namespace lepp;
 
 #include "lepp2/debug/timer.hpp"
 
-template<class PointT>
-class BaseObstacleDetector : public lepp::VideoObserver<PointT> {
+/**
+ * A base class for obstacle detectors.
+ *
+ * Provides the ability for `ObstacleAggregator`s to attach to it and a
+ * convenience protected method that sends a notification to all of them with a
+ * given list of models.
+ */
+class IObstacleDetector {
 public:
-  BaseObstacleDetector();
+  /**
+   * Attaches a new ObstacleAggregator, which will be notified of newly detected
+   * obstacles by this detector.
+   */
+  void attachObstacleAggregator(
+      boost::shared_ptr<ObstacleAggregator> aggregator);
+
+protected:
+  /**
+   * Notifies any observers about newly detected obstacles.
+   */
+  void notifyObstacles(std::vector<ObjectModelPtr> const& models);
+
+private:
+  /**
+   * Tracks all attached ObstacleAggregators that wish to be notified of newly
+   * detected obstacles.
+   */
+  std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators_;
+};
+
+/**
+ * A basic implementation of an obstacle detector that detects obstacles from a
+ * `VideoSource`. In order to do so, it needs to be attached to a `VideoSource`
+ * instance (and therefore it implements the `VideoObserver` interface).
+ *
+ * Obstacles in each frame that the `VideoSource` gives to the detector are
+ * found by first performing segmentation of the given point cloud (using the
+ * given `BaseSegmenter` instance), followed by performing the approximation
+ * of each of them by the given `ObjectApproximator` instance.
+ */
+template<class PointT>
+class BaseObstacleDetector : public lepp::VideoObserver<PointT>,
+                             public IObstacleDetector {
+public:
+  /**
+   * Creates a new `BaseObstacleDetector` that will use the given
+   * `ObjectApproximator` instance for generating approximations for detected
+   * obstacles.
+   */
+  BaseObstacleDetector(boost::shared_ptr<ObjectApproximator<PointT> > approx);
   virtual ~BaseObstacleDetector() {}
 
   /**
@@ -32,40 +80,13 @@ public:
       int idx,
       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud);
 
-  /**
-   * Attaches a new ObstacleAggregator, which will be notified of newly detected
-   * obstacles by this detector.
-   */
-  void attachObstacleAggregator(
-      boost::shared_ptr<ObstacleAggregator> aggregator);
-  /**
-   * Returns the point cloud that the detector is currently working with.
-   *
-   * NOTE: Needed only for the legacy code that relies of pulling the point
-   *       cloud from the detector, instead of getting it as a parameter.
-   */
-  virtual typename pcl::PointCloud<PointT>::ConstPtr getPointCloud() const {
-    return cloud_;
-  }
-
 protected:
   /// Some convenience typedefs
   typedef pcl::PointCloud<PointT> PointCloud;
   typedef typename pcl::PointCloud<PointT>::ConstPtr PointCloudConstPtr;
 
-  /**
-   * Notifies any observers about newly detected obstacles.
-   */
-  void notifyObstacles(std::vector<ObjectModelPtr> const& models);
-
 private:
   typename pcl::PointCloud<PointT>::ConstPtr cloud_;
-
-  /**
-   * Tracks all attached ObstacleAggregators that wish to be notified of newly
-   * detected obstacles.
-   */
-  std::vector<boost::shared_ptr<ObstacleAggregator> > aggregators;
 
   boost::shared_ptr<BaseSegmenter<PointT> > segmenter_;
   boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
@@ -78,11 +99,10 @@ private:
 };
 
 template<class PointT>
-BaseObstacleDetector<PointT>::BaseObstacleDetector()
-    : approximator_(new SplitObjectApproximator<PointT>(
-        boost::shared_ptr<ObjectApproximator<PointT> >(
-          new MomentOfInertiaObjectApproximator<PointT>))),
-      segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
+BaseObstacleDetector<PointT>::BaseObstacleDetector(
+    boost::shared_ptr<ObjectApproximator<PointT> > approx)
+      : approximator_(approx),
+        segmenter_(new EuclideanPlaneSegmenter<PointT>()) {
   // TODO Allow for dependency injection.
 }
 
@@ -95,7 +115,7 @@ void BaseObstacleDetector<PointT>::notifyNewFrame(
   try {
     update();
   } catch (...) {
-    std::cerr << "ObstacleDetector: Obstacle detection failed ..." << std::endl;
+    LERROR << "ObstacleDetector: Obstacle detection failed ...";
   }
 }
 
@@ -113,23 +133,21 @@ void BaseObstacleDetector<PointT>::update() {
     models.push_back(approximator_->approximate(segments[i]));
   }
   t.stop();
-  std::cerr << "Obstacle detection took " << t.duration() << std::endl;
+  PINFO << "Obstacle detection took " << t.duration();
 
   notifyObstacles(models);
 }
 
-template<class PointT>
-void BaseObstacleDetector<PointT>::attachObstacleAggregator(
+void IObstacleDetector::attachObstacleAggregator(
     boost::shared_ptr<ObstacleAggregator> aggregator) {
-  aggregators.push_back(aggregator);
+  aggregators_.push_back(aggregator);
 }
 
-template<class PointT>
-void BaseObstacleDetector<PointT>::notifyObstacles(
-  std::vector<ObjectModelPtr> const& models) {
-  size_t sz = aggregators.size();
+void IObstacleDetector::notifyObstacles(
+    std::vector<ObjectModelPtr> const& models) {
+  size_t sz = aggregators_.size();
   for (size_t i = 0; i < sz; ++i) {
-    aggregators[i]->updateObstacles(models);
+    aggregators_[i]->updateObstacles(models);
   }
 }
 

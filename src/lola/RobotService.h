@@ -61,19 +61,49 @@ struct VisionMessage {
 std::ostream& operator<<(std::ostream& out, VisionMessage const& msg);
 
 /**
+ * An interface that needs to be implemented by concrete classes that can
+ * send vision messages to the robot.
+ */
+class RobotService {
+public:
+  /**
+   * Send the given message to the robot.
+   *
+   * It is up to particular concrete `RobotService` implementations to decide
+   * how the method goes about performing this operation and whether it blocks
+   * or not.
+   */
+  virtual void sendMessage(VisionMessage const& msg) = 0;
+};
+
+/**
  * A class that implements a service which can send vision-related notifications
  * to the robot.
  *
  * It allows clients to asychronously send vision messages to the robot.
  */
-class RobotService {
+class AsyncRobotService : public RobotService {
 public:
   /**
-   * Creates a new `RobotService` instance that will try to send messages to a
-   * robot on the given remote address (host name, port combination).
+   * Creates a new `AsyncRobotService` instance that will try to send messages
+   * to a robot on the given remote address (host name, port combination).
+   *
+   * No delay between subsequent messages is set.
    */
-  RobotService(std::string const& remote, int port)
-      : remote_(remote), port_(port), socket_(io_service_) {}
+  AsyncRobotService(std::string const& remote, int port)
+      : remote_(remote), port_(port), socket_(io_service_),
+        message_timeout_(0) {}
+
+  /**
+   * Creates a new `AsyncRobotService` instance that will try to send messages
+   * to a robot on the given remote address (host name, port combination).
+   *
+   * The delay between each subsequent sent message is set by the `delay`
+   * parameter.
+   */
+  AsyncRobotService(std::string const& remote, int port, int delay)
+      : remote_(remote), port_(port), socket_(io_service_),
+        message_timeout_(delay) {}
   /**
    * Starts up the service, initiating a connection to the robot.
    *
@@ -104,6 +134,20 @@ private:
    * The socket that is connected to the remote robot endpoint.
    */
   boost::asio::ip::tcp::socket socket_;
+
+  /**
+   * A number of milliseconds that the service waits between subsequent
+   * messages that it sends to the robot.
+   */
+  boost::posix_time::milliseconds message_timeout_;
+
+  /**
+   * A helper function that performs the send of the message and then waits
+   * the predefined amount of time before returning. This way, the wait blocks
+   * the (io_service) thread and causes the next message that should be sent
+   * to be delayed the necessary amount of time.
+   */
+  void inner_send(VisionMessage const& msg);
 };
 
 #endif

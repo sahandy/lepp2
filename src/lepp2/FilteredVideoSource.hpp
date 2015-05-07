@@ -6,6 +6,7 @@
 #include "lepp2/filter/PointFilter.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/unordered_set.hpp>
@@ -13,6 +14,8 @@
 #include <boost/circular_buffer.hpp>
 
 #include "lepp2/debug/timer.hpp"
+
+#include "deps/easylogging++.h"
 
 /**
  * A struct that is used to describe a single point in space that can be used
@@ -207,7 +210,8 @@ void FilteredVideoSource<PointT>::notifyNewFrame(
   // ...and we're done!
   t.stop();
 
-  std::cerr << "Filtering took " << t.duration() << std::endl;
+  LTRACE << "Total included points " << cloud_filtered->size();
+  PINFO << "Filtering took " << t.duration();
   // Finally, the cloud that is emitted by this instance is the filtered cloud.
   this->setNextFrame(cloud_filtered);
 }
@@ -240,31 +244,55 @@ public:
   using typename FilteredVideoSource<PointT>::PointCloudType;
 
   ProbFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source)
-      : FilteredVideoSource<PointT>(source) {}
+      : FilteredVideoSource<PointT>(source),
+        larger_voxelization_(false) {}
+  ProbFilteredVideoSource(boost::shared_ptr<VideoSource<PointT> > source,
+                          bool larger_voxelization)
+      : FilteredVideoSource<PointT>(source),
+        larger_voxelization_(larger_voxelization) {}
 protected:
-  void newFrame() { this_frame_.clear(); }
+  void newFrame() {
+    this_frame_.clear();
+    min_pt.x = std::numeric_limits<int>::max();
+    min_pt.y = std::numeric_limits<int>::max();
+    min_pt.z = std::numeric_limits<int>::max();
+    max_pt.x = std::numeric_limits<int>::min();
+    max_pt.y = std::numeric_limits<int>::min();
+    max_pt.z = std::numeric_limits<int>::min();
+  }
 
   void newPoint(PointT& p, PointCloudType& filtered) {
     MapPoint map_point = MapPoint(p.x * 100, p.y * 100, p.z * 100);
-    boost::circular_buffer<bool>& ref = all_points_[map_point];
-    // TODO Factor out the percentage and number of frames that are considered
-    //      to a member constant.
-    if (ref.capacity() == 0) {
-      ref.set_capacity(30);
+
+    if (larger_voxelization_) {
+      int const mask = 0xFFFFFFFE;
+      map_point.x &= mask;
+      map_point.y &= mask;
+      map_point.z &= mask;
     }
-    ref.push_back(true);
+
+    uint32_t& ref = all_points_[map_point];
+    ref <<= 1;
+    ref |= 1;
     this_frame_.insert(map_point);
+    // Keep track of the min/max points so that we know the bounding box of
+    // the current cloud.
+    min_pt.x = std::min(min_pt.x, map_point.x);
+    min_pt.y = std::min(min_pt.y, map_point.y);
+    min_pt.z = std::min(min_pt.z, map_point.z);
+    max_pt.x = std::max(max_pt.x, map_point.x);
+    max_pt.y = std::max(max_pt.y, map_point.y);
+    max_pt.z = std::max(max_pt.z, map_point.z);
   }
 
   void getFiltered(PointCloudType& filtered) {
-    boost::unordered_map<MapPoint, boost::circular_buffer<bool> >::iterator it =
+    boost::unordered_map<MapPoint, uint32_t>::iterator it =
         all_points_.begin();
     while (it != all_points_.end()) {
       if (this_frame_.find(it->first) == this_frame_.end()) {
-        it->second.push_back(false);
+        it->second <<= 1;
       }
-      unsigned char const count = std::accumulate(
-          it->second.begin(), it->second.end(), 0);
+      int count = __builtin_popcount(it->second);
       if (count >= 10) {
         PointT pt;
         pt.x = it->first.x / 100.;
@@ -272,12 +300,35 @@ protected:
         pt.z = it->first.z / 100.;
         filtered.push_back(pt);
       }
-      ++it;
+
+      // Allow for a bit of leeway with removing points at the very boundary of
+      // the bounding box. To do this, the bounding box is increased by 10 [cm]
+      // in each direction. Only points within *this* bounding box are kept in
+      // the map -- all others removed.
+      // TODO See if tweaking these values up/down yields any benefits.
+      min_pt.x -= 10;
+      min_pt.y -= 10;
+      min_pt.z -= 10;
+      max_pt.x += 10;
+      max_pt.y += 10;
+      max_pt.z += 10;
+      MapPoint const& pt = it->first;
+      if (pt.x < min_pt.x || pt.x > max_pt.x ||
+          pt.y < min_pt.y || pt.y > max_pt.y ||
+          pt.z < min_pt.z || pt.z > max_pt.z) {
+        all_points_.erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 private:
   boost::unordered_set<MapPoint> this_frame_;
-  boost::unordered_map<MapPoint, boost::circular_buffer<bool> > all_points_;
+  boost::unordered_map<MapPoint, uint32_t> all_points_;
+  MapPoint min_pt;
+  MapPoint max_pt;
+
+  bool const larger_voxelization_;
 };
 
 /**

@@ -8,9 +8,7 @@
 #include <pcl/io/pcd_grabber.h>
 
 #include "lepp2/BaseObstacleDetector.hpp"
-#include "lepp2/StairDetector.hpp"
 #include "lepp2/GrabberVideoSource.hpp"
-#include "lepp2/DummyGrabberVideoSource.hpp"
 #include "lepp2/BaseVideoSource.hpp"
 #include "lepp2/VideoObserver.hpp"
 #include "lepp2/FilteredVideoSource.hpp"
@@ -18,17 +16,14 @@
 
 #include "lepp2/visualization/EchoObserver.hpp"
 #include "lepp2/visualization/ObstacleVisualizer.hpp"
-#include "lepp2/visualization/StairVisualizer.hpp"
 
 #include "lepp2/filter/TruncateFilter.hpp"
 #include "lepp2/filter/SensorCalibrationFilter.hpp"
 
-#include "lola/OdoCoordinateTransformer.hpp"
-#include "lola/LolaAggregator.h"
-#include "lola/PoseService.h"
-#include "lola/RobotService.h"
-
 #include "lepp2/models/ObjectModel.h"
+#include "deps/easylogging++.h"
+_INITIALIZE_EASYLOGGINGPP
+
 
 using namespace lepp;
 
@@ -40,50 +35,34 @@ namespace {
  * Prints out the expected CLI usage of the program.
  */
 void PrintUsage() {
-  std::cout << "usage: detector [--pcd file | --oni file | --stream] [--live]"
+  std::cout << "usage: detector [--pcd file | --oni file | --stream]"
       << std::endl;
   std::cout << "--pcd    : " << "read the input from a .pcd file" << std::endl;
   std::cout << "--oni    : " << "read the input from an .oni file" << std::endl;
   std::cout << "--stream : " << "read the input from a live stream based on a"
       << " sensor attached to the computer" << std::endl;
-  std::cout << "--live   : " << "whether kinematics data is obtained from the robot"
-      << std::endl;
 }
-
 
 /**
  * Builds a `FilteredVideoSource` instance that wraps the given raw source.
  */
 template<class PointT>
 boost::shared_ptr<FilteredVideoSource<PointT> >
-buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
+buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw) {
   // Wrap the given raw source.
-  boost::shared_ptr<FilteredVideoSource<SimplePoint> > source(
-      new SimpleFilteredVideoSource<SimplePoint>(raw));
+  boost::shared_ptr<FilteredVideoSource<PointT> > source(
+      new SimpleFilteredVideoSource<PointT>(raw));
   // Now set the point filters that should be used.
   {
     double const a = 1.0117;
     double const b = -0.0100851;
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new SensorCalibrationFilter<SimplePoint>(a, b));
+    boost::shared_ptr<PointFilter<PointT> > filter(
+        new SensorCalibrationFilter<PointT>(a, b));
     source->addFilter(filter);
-  }
-  if (!live) {
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new FileOdoTransformer<SimplePoint>("../videos/log_04.log"));
-    source->addFilter(filter);
-  } else {
-    // TODO The reference to the service should eventually be obtained from some
-    //      sort of IOC container.
-//    boost::shared_ptr<PoseService> service(new PoseService("127.0.0.1", 5000));
-//    service->start();
-//    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-//        new RobotOdoTransformer<SimplePoint>(service));
-//    source->addFilter(filter);
   }
   {
-    boost::shared_ptr<PointFilter<SimplePoint> > filter(
-        new TruncateFilter<SimplePoint>(2));
+    boost::shared_ptr<PointFilter<PointT> > filter(
+        new TruncateFilter<PointT>(2));
     source->addFilter(filter);
   }
 
@@ -94,48 +73,35 @@ buildFilteredSource(boost::shared_ptr<VideoSource<PointT> > raw, bool live) {
  * Parses the command line arguments received by the program and chooses
  * the appropriate video source based on those.
  */
-boost::shared_ptr<SimpleVideoSource> GetVideoSource(int argc, char* argv[]) {
+boost::shared_ptr<VideoSource<PointT> > GetVideoSource(int argc, char* argv[]) {
   if (argc < 2) {
-    return boost::shared_ptr<SimpleVideoSource>();
+    return boost::shared_ptr<VideoSource<PointT> >();
   }
 
   std::string const option = argv[1];
   if (option == "--stream") {
-    return boost::shared_ptr<SimpleVideoSource>(
-        new LiveStreamSource<SimplePoint>());
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new LiveStreamSource<PointT>());
   } else if (option == "--pcd" && argc >= 3) {
     std::string const file_path = argv[2];
-    boost::shared_ptr<pcl::Grabber> interface(new pcl::PCDGrabber<SimplePoint>(
+    boost::shared_ptr<pcl::Grabber> interface(new pcl::PCDGrabber<PointT>(
       file_path,
       20.,
       true));
-    return boost::shared_ptr<SimpleVideoSource>(
-        new GeneralGrabberVideoSource<SimplePoint>(interface));
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new GeneralGrabberVideoSource<PointT>(interface));
   } else if (option == "--oni" && argc >= 3) {
     std::string const file_path = argv[2];
     boost::shared_ptr<pcl::Grabber> interface(new pcl::io::OpenNI2Grabber(
       file_path,
       pcl::io::OpenNI2Grabber::OpenNI_Default_Mode,
       pcl::io::OpenNI2Grabber::OpenNI_Default_Mode));
-    return boost::shared_ptr<SimpleVideoSource>(
-        new GeneralGrabberVideoSource<SimplePoint>(interface));
+    return boost::shared_ptr<VideoSource<PointT> >(
+        new GeneralGrabberVideoSource<PointT>(interface));
   }
 
   // Unknown option: return a "null" pointer.
-  return boost::shared_ptr<SimpleVideoSource>();
-}
-
-/**
- * Checks whether the CLI parameters indicate that the detector should run with
- * a live robot.
- *
- * This is true iff a `--live` flag was passed to the executable.
- */
-bool isLive(int argc, char* argv[]) {
-  for (int i = 0; i < argc; ++i) {
-    if (std::string(argv[i]) == "--live") return true;
-  }
-  return false;
+  return boost::shared_ptr<VideoSource<PointT> >();
 }
 
 int main(int argc, char* argv[]) {
@@ -145,30 +111,47 @@ int main(int argc, char* argv[]) {
     PrintUsage();
     return 1;
   }
-  bool live = isLive(argc, argv);
   // Wrap the raw source in a filter
   boost::shared_ptr<FilteredVideoSource<PointT> > source(
-      buildFilteredSource(raw_source, live));
+      buildFilteredSource(raw_source));
 
+  // Prepare the approximator that the detector is to use.
+  // First, the simple approximator...
+  boost::shared_ptr<ObjectApproximator<PointT> > simple_approx(
+      boost::shared_ptr<ObjectApproximator<PointT> >(
+        new MomentOfInertiaObjectApproximator<PointT>));
+  // ...then the split strategy
+  boost::shared_ptr<CompositeSplitStrategy<PointT> > splitter(
+      new CompositeSplitStrategy<PointT>);
+  splitter->addSplitCondition(boost::shared_ptr<SplitCondition<PointT> >(
+      new DepthLimitSplitCondition<PointT>(1)));
+  // ...finally, wrap those into a `SplitObjectApproximator` that is given
+  // to the detector.
+  boost::shared_ptr<ObjectApproximator<PointT> > approx(
+      new SplitObjectApproximator<PointT>(simple_approx, splitter));
   // Prepare the detector
-  boost::shared_ptr<StairDetector<PointT> > stairDetector(
-       new StairDetector<PointT>());
+  boost::shared_ptr<BaseObstacleDetector<PointT> > detector(
+      new BaseObstacleDetector<PointT>(approx));
   // Attaching the detector to the source: process the point clouds obtained
   // by the source.
-  source->attachObserver(stairDetector);
+  source->attachObserver(detector);
 
   // Prepare the result visualizer...
-  boost::shared_ptr<StairVisualizer<PointT> > visualizer(
-         new StairVisualizer<PointT>());
+  boost::shared_ptr<ObstacleVisualizer<PointT> > visualizer(
+      new ObstacleVisualizer<PointT>());
   // Attaching the visualizer to the source: allow it to display the original
   // point cloud.
   source->attachObserver(visualizer);
   // The visualizer is additionally decorated by the "smoothener" to smooth out
   // the output...
-  stairDetector->attachStairAggregator(visualizer);
+  boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
+      new SmoothObstacleAggregator);
+  detector->attachObstacleAggregator(smooth_decorator);
+  smooth_decorator->attachObstacleAggregator(visualizer);
 
   // Starts capturing new frames and forwarding them to attached observers.
   source->open();
+
   std::cout << "Waiting forever..." << std::endl;
   std::cout << "(^C to exit)" << std::endl;
   while (true)

@@ -6,6 +6,7 @@
 #include "lepp2/models/ObjectModel.h"
 
 #include "lola/RobotService.h"
+#include "lola/Robot.h"
 
 #include <boost/array.hpp>
 #include <boost/asio.hpp>
@@ -67,7 +68,7 @@ public:
    * Create a new `RobotAggregator` that will use the given service to
    * communicate to the robot and send status updates after every `freq` frames.
    */
-  RobotAggregator(RobotService& service, int freq);
+  RobotAggregator(RobotService& service, int freq, Robot& robot);
   /**
    * `ObstacleAggregator` interface implementation.
    */
@@ -86,7 +87,7 @@ private:
    * The function is passed as a callback to the underlying `DiffAggregator` for
    * when models are discovered to be deleted.
    */
-  void del_cb_(int obj_id);
+  bool del_cb_(ObjectModel& model);
   /**
    * The function is passed as a callback to the underlying `DiffAggregator` for
    * when a model has been modified.
@@ -125,6 +126,10 @@ private:
    * A handle to the service that is used to send notifications to the robot.
    */
   RobotService& service_;
+  /**
+   * A handle to the robot facade.
+   */
+  Robot& robot_;
   /**
    * An instance of a `DiffAggregator` that this one delegates to in order to
    * detect the differences between the checkpoint frames.

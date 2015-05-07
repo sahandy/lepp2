@@ -5,6 +5,7 @@
 
 #include <pcl/common/pca.h>
 #include <pcl/common/common.h>
+#include <pcl/kdtree/kdtree_flann.h>
 
 #include "lepp2/models/ObjectModel.h"
 
@@ -27,12 +28,8 @@ private:
   // best way.
   // The implementations of the functions are pretty much a copy-paste of the
   // legacy code (ergo not very clean).
-  // TODO This improves the legacy fitting *somewhat* in that at least some
-  //      sort of of polymorphism is being applied (overloaded functions) so
-  //      that the if-then-else is avoided at least for fitting
-  // This design isn't even *that* bad, but it would be better to use some sort
-  // of double-dispatch so that MoIApproximator doesn't need to be recompiled
-  // when another model is added.
+  // TODO Clean up the implementations of the functions (e.g. lots of unused variables)
+  // TODO Refactor them in terms of the `ModelVisitor` API (`FittingVisitor`).
   void performFitting(boost::shared_ptr<SphereModel> sphere,
                       const typename pcl::PointCloud<PointT>::ConstPtr& point_cloud,
                       Eigen::Vector3f mass_center,
@@ -71,13 +68,6 @@ MomentOfInertiaObjectApproximator<PointT>::approximate(
   Eigen::Vector3f mass_center(estimateMassCenter(point_cloud));
 
   // Based on these descriptors, decide which object type should be used.
-  // Code smell: if-then-else chain!
-  // TODO Find a way to defer this decision to object models themselves.
-  //      Give them a descriptor and ask for a rating of how good that model can
-  //      be used to approximate the described cloud.
-  //      Allows for future extensibility with other model types.
-  //      (Bonus points: make the models independent from the MoI-based
-  //       descriptors)
   boost::shared_ptr<ObjectModel> model;
   if ((middle_value / major_value > .6) && (minor_value / major_value > .1)) {
     boost::shared_ptr<SphereModel> sphere(new SphereModel(0, Coordinate()));
