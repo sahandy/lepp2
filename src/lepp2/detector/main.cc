@@ -114,30 +114,16 @@ int main(int argc, char* argv[]) {
   boost::shared_ptr<FilteredVideoSource<PointT> > source(
       buildFilteredSource(raw_source));
   // Prepare the detector
-//  boost::shared_ptr<BaseObstacleDetector<PointT> > detector(
-//      new BaseObstacleDetector<PointT>());
   boost::shared_ptr<StairDetector<PointT> > stairDetector(
       new StairDetector<PointT>());
-  // Attaching the detector to the source: process the point clouds obtained
-  // by the source.
-//  source->attachObserver(detector);
   source->attachObserver(stairDetector);
 
   // Prepare the result visualizer...
-//  boost::shared_ptr<ObstacleVisualizer<PointT> > visualizer(
-//      new ObstacleVisualizer<PointT>());
   boost::shared_ptr<StairVisualizer<PointT> > visualizer(
         new StairVisualizer<PointT>());
   // Attaching the visualizer to the source: allow it to display the original
   // point cloud.
   source->attachObserver(visualizer);
-  // The visualizer is additionally decorated by the "smoothener" to smooth out
-  // the output...
-//  boost::shared_ptr<SmoothObstacleAggregator> smooth_decorator(
-//      new SmoothObstacleAggregator);
-//  detector->attachObstacleAggregator(smooth_decorator);
-//  smooth_decorator->attachObstacleAggregator(visualizer);
-
   stairDetector->attachStairAggregator(visualizer);
 
   // Starts capturing new frames and forwarding them to attached observers.
