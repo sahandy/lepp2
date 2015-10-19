@@ -92,7 +92,7 @@ private:
 
 template<class PointT>
 StairSegmenter<PointT>::StairSegmenter()
-    : min_filter_percentage_(0.1),
+    : min_filter_percentage_(0.2),
       kd_tree_(new pcl::search::KdTree<PointT>()),
       cloud_stairs_(new PointCloudT()) {
   // Parameter initialization of the plane segmentation
@@ -100,12 +100,12 @@ StairSegmenter<PointT>::StairSegmenter()
   segmentation_.setModelType(pcl::SACMODEL_PLANE);
   segmentation_.setMethodType(pcl::SAC_RANSAC);
   segmentation_.setMaxIterations(100); // value recognized by Irem
-  segmentation_.setDistanceThreshold(0.07);
+  segmentation_.setDistanceThreshold(0.05);
 
   // Parameter initialization of the clusterizer
-  clusterizer_.setClusterTolerance(0.02); // 2 cm
-  clusterizer_.setMinClusterSize(1500);
-  clusterizer_.setMaxClusterSize(25000);
+  clusterizer_.setClusterTolerance(17);
+  clusterizer_.setMinClusterSize(150);
+  clusterizer_.setMaxClusterSize(3100000);
 }
 
 template<class PointT>
@@ -166,13 +166,27 @@ void StairSegmenter<PointT>::findStairs(
     extract.setNegative(false);
     extract.filter(*cloud_planar_surface);
 
-    *cloud_stairs_ += *cloud_planar_surface;
-    vec_cloud_stairs_.push_back(cloud_planar_surface);
-
     // ... and remove those inliers from the input cloud
     extract.setNegative(true);
     extract.filter(*cloud_filtered);
+
+    // Determine the minimum surface level based on the currently found plane
+    if (surface_counter == 0)
+        surface_level = cloud_planar_surface->points[0].z;
+      else if (surface_level > cloud_planar_surface->points[0].z)
+        surface_level = cloud_planar_surface->points[0].z;
+      // ... final else??
+    surface_counter++;
+    // put the newly found plane in the total cloud
+    // TODO determine if pcl::concatenateFields is necessary
+    // -> [http://pointclouds.org/documentation/tutorials/concatenate_clouds.php]
+    *cloud_stairs_ += *cloud_planar_surface;
+
+    vec_cloud_stairs_.push_back(cloud_planar_surface);
   }
+
+  std::cout << "#found Stairs: " << vec_cloud_stairs_.size() << std::endl;
+
 }
 
 template<class PointT>
@@ -218,8 +232,9 @@ StairSegmenter<PointT>::segment(
   PointCloudPtr cloud_filtered = preprocessCloud(cloud);
   // extract those planes that are considered as stairs and put them in cloud_stairs_
   findStairs(cloud_filtered);
-  std::vector<pcl::PointIndices> stair_cluster_indices = getStairClusters(cloud_stairs_);
-  return clustersToPointClouds(cloud_stairs_, stair_cluster_indices);
+  return vec_cloud_stairs_;
+//  std::vector<pcl::PointIndices> stair_cluster_indices = getStairClusters(cloud_stairs_);
+//  return clustersToPointClouds(cloud_stairs_, stair_cluster_indices);
 }
 
 

@@ -60,8 +60,6 @@ class StairDetector : public lepp::VideoObserver<PointT> {
     std::vector<boost::shared_ptr<StairAggregator<PointT> > > aggregators;
 
     boost::shared_ptr<BaseSegmenter<PointT> > segmenter_;
-    boost::shared_ptr<ObjectApproximator<PointT> > approximator_;
-
     /**
      * Performs a new update of the obstacle approximations.
      * Triggered when the detector is notified of a new frame (i.e. point cloud).
@@ -71,10 +69,7 @@ class StairDetector : public lepp::VideoObserver<PointT> {
 
 template<class PointT>
 StairDetector<PointT>::StairDetector()
-    : approximator_(new SplitObjectApproximator<PointT>(
-        boost::shared_ptr<ObjectApproximator<PointT> >(
-          new MomentOfInertiaObjectApproximator<PointT>))),
-      segmenter_(new StairSegmenter<PointT>()) {
+    : segmenter_(new StairSegmenter<PointT>()) {
 }
 
 template<class PointT>
